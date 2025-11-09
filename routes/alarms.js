@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
 
   const [[{ cnt }]] = await pool.query(
     `SELECT COUNT(*) cnt
-       FROM alarms a
+       FROM alarm a
        JOIN sensor s ON s.id = a.sensor_id
       WHERE s.company_id = :company_id`,
     { company_id }
@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
   const [rows] = await pool.query(
     `SELECT a.id, s.company_id, a.sensor_id, s.sensor_type, a.message, a.value,
             a.threshold_ref, a.created_at, a.resolved_at, a.resolved_by
-       FROM alarms a
+       FROM alarm a
        JOIN sensor s ON s.id = a.sensor_id
       WHERE s.company_id = :company_id
       ${orderSql}
@@ -54,7 +54,7 @@ router.get('/', async (req, res) => {
     meta: { page, size, total: cnt }
   });
 });
-
+/** POST /api/v1/alarms  (admin/manager) */
 /** POST /api/v1/alarms/:alarmId/resolve  (admin/manager) */
 router.post('/:alarmId/resolve', mustRole('admin', 'manager'), async (req, res) => {
   const company_id = req.company_id;
@@ -62,7 +62,7 @@ router.post('/:alarmId/resolve', mustRole('admin', 'manager'), async (req, res) 
   const uid = req.user.id;
 
   const [r1] = await pool.query(
-    `UPDATE alarms a
+    `UPDATE alarm a
         JOIN sensor s ON s.id = a.sensor_id
        SET a.resolved_at = UTC_TIMESTAMP(),
            a.resolved_by = :uid
@@ -72,10 +72,10 @@ router.post('/:alarmId/resolve', mustRole('admin', 'manager'), async (req, res) 
     { id, uid, company_id }
   );
 
-  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '알람 없음/권한');
+  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '알람 없음');
 
   const [row] = await pool.query(
-    `SELECT id, resolved_at, resolved_by FROM alarms WHERE id=:id`,
+    `SELECT id, resolved_at, resolved_by FROM alarm WHERE id=:id`,
     { id }
   );
 

@@ -30,8 +30,8 @@ router.get('/', async (req, res) => {
 
   const [[{ cnt }]] = await pool.query(
     `SELECT COUNT(*) cnt
-       FROM notifications nt
-       JOIN alarms a ON a.id = nt.alarm_id
+       FROM notification nt
+       JOIN alarm a ON a.id = nt.alarm_id
        JOIN sensor s ON s.id = a.sensor_id
       WHERE s.company_id = :company_id`,
     { company_id }
@@ -40,8 +40,8 @@ router.get('/', async (req, res) => {
   const [rows] = await pool.query(
     `SELECT nt.id, s.company_id, nt.alarm_id, nt.channel, nt.target_id, nt.status,
             nt.message, nt.payload, nt.created_at, nt.sent_at
-       FROM notifications nt
-       JOIN alarms a ON a.id = nt.alarm_id
+       FROM notification nt
+       JOIN alarm a ON a.id = nt.alarm_id
        JOIN sensor s ON s.id = a.sensor_id
       WHERE s.company_id = :company_id
       ${orderSql}
@@ -69,7 +69,7 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
   // 알람 소유권
   const [own] = await pool.query(
     `SELECT a.id
-       FROM alarms a
+       FROM alarm a
        JOIN sensor s ON s.id = a.sensor_id
       WHERE a.id=:alarm_id AND s.company_id=:company_id`,
     { alarm_id, company_id }
@@ -84,14 +84,14 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
   if (!usr.length) return res.fail(403, 'FORBIDDEN', '타깃 사용자 범위 외');
 
   const [r1] = await pool.query(
-    `INSERT INTO notifications (alarm_id, channel, target_id, status, message, payload)
+    `INSERT INTO notification (alarm_id, channel, target_id, status, message, payload)
      VALUES (:alarm_id, :channel, :target_id, 'PENDING', :message, :payload)`,
     { alarm_id, channel, target_id, message, payload }
   );
 
   const [row] = await pool.query(
     `SELECT id, alarm_id, channel, target_id, status, payload, created_at, sent_at
-       FROM notifications WHERE id=:id`,
+       FROM notification WHERE id=:id`,
     { id: r1.insertId }
   );
 
@@ -110,8 +110,8 @@ router.post('/:id/retry', mustRole('admin', 'manager'), async (req, res) => {
   // 회사 소유 검증
   const [own] = await pool.query(
     `SELECT nt.id
-       FROM notifications nt
-       JOIN alarms a ON a.id = nt.alarm_id
+       FROM notification nt
+       JOIN alarm a ON a.id = nt.alarm_id
        JOIN sensor s ON s.id = a.sensor_id
       WHERE nt.id=:id AND s.company_id=:company_id`,
     { id, company_id }
@@ -119,7 +119,7 @@ router.post('/:id/retry', mustRole('admin', 'manager'), async (req, res) => {
   if (!own.length) return res.fail(404, 'NOT_FOUND', '알림 없음');
 
   await pool.query(
-    `UPDATE notifications SET status='PENDING', sent_at=NULL WHERE id=:id`,
+    `UPDATE notification SET status='PENDING', sent_at=NULL WHERE id=:id`,
     { id }
   );
 

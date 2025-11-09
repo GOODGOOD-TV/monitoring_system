@@ -24,13 +24,13 @@ router.get('/', async (req, res) => {
   const orderSql = buildOrderBy(req.query.sort, ['created_at'], 'created_at DESC');
 
   const [[{ cnt }]] = await pool.query(
-    `SELECT COUNT(*) cnt FROM sys_logs WHERE company_id=:company_id`,
+    `SELECT COUNT(*) cnt FROM sys_log WHERE company_id=:company_id`,
     { company_id }
   );
 
   const [rows] = await pool.query(
     `SELECT id, company_id, user_id, action, description, ip, created_at
-       FROM sys_logs
+       FROM sys_log
       WHERE company_id=:company_id
       ${orderSql}
       LIMIT :size OFFSET :offset`,

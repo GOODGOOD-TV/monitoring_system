@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
   const [rows] = await pool.query(
     `
     SELECT th.sensor_id, th.lower_bound, th.upper_bound, th.updated_by, th.updated_at
-      FROM thresholds th
+      FROM threshold th
       JOIN sensor s ON s.id = th.sensor_id
      WHERE s.company_id = :company_id
     `,
@@ -59,7 +59,7 @@ router.put('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
 
   // UPSERT
   await pool.query(
-    `INSERT INTO thresholds (sensor_id, lower_bound, upper_bound, updated_by)
+    `INSERT INTO threshold (sensor_id, lower_bound, upper_bound, updated_by)
      VALUES (:sensor_id, :lb, :ub, :uid)
      ON DUPLICATE KEY UPDATE
        lower_bound = VALUES(lower_bound),
@@ -70,7 +70,7 @@ router.put('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
   );
 
   const [row] = await pool.query(
-    'SELECT sensor_id, lower_bound, upper_bound, updated_by, updated_at FROM thresholds WHERE sensor_id=:sensor_id',
+    'SELECT sensor_id, lower_bound, upper_bound, updated_by, updated_at FROM threshold WHERE sensor_id=:sensor_id',
     { sensor_id }
   );
 
