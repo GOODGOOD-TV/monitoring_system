@@ -33,21 +33,16 @@ git clone https://github.com/GOODGOOD-TV/monitoring_system.git
 cd monitoring_system
 ```
 
-### 2. 환경 변수 설정
-`backend/.env.sample`을 참고해 `backend/.env` 파일을 생성합니다:
+### 3. 데이터베이스 초기 설정(MariaDB)
 ```bash
-cp backend/.env.sample backend/.env
-```
+DB초기설정.txt 이용하여 구축
+or
+Sentory.sql 이용
 
-### 3. 데이터베이스 실행
-```bash
-docker compose up -d
 ```
 
 ### 4. 백엔드 실행
 ```bash
-cd backend
-npm ci
 npm run dev
 ```
 서버: [http://localhost:3000](http://localhost:3000)
