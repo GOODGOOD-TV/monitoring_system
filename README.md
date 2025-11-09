@@ -46,14 +46,6 @@ npm run dev
 ```
 서버: [http://localhost:3000](http://localhost:3000)
 
-### 5. 프론트엔드 실행
-```bash
-cd ../frontend
-npm ci
-npm run dev
-```
-클라이언트: [http://localhost:5173](http://localhost:5173)
-
 ---
 
 ## 📁 폴더 구조
