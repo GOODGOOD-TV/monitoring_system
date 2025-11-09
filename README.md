@@ -66,21 +66,15 @@ npm run dev
 ```
 monitoring_system/
  ├─ backend/
- │   ├─ server.js
- │   ├─ routes/
- │   ├─ controllers/
- │   ├─ db.js
- │   ├─ middlewares/
- │   ├─ utils/
- │   └─ .env.sample
- │
+ ├─ server.js
+ ├─ libs/
+ ├─ middlewares/
+ ├─ routes/
  ├─ frontend/
  │   ├─ src/
  │   ├─ public/
  │   ├─ vite.config.js
  │   └─ package.json
- │
- ├─ docker-compose.yml
  ├─ README.md
  └─ .gitignore
 ```
