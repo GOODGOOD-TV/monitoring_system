@@ -1,12 +1,129 @@
-const express = require("express");
-const router = express.Router();
+import { Router } from 'express';
+import { pool } from '../libs/db.js';
+import { buildOrderBy } from '../libs/order.js';
 
-router.post("/", async (req, res) => {
-  const { timestamp, sensors } = req.body;
-  console.log("📡 수신:", timestamp, sensors.length, "개 센서");
+function mustRole(...roles) {
+  return (req, res, next) => roles.includes(req.user?.role)
+    ? next()
+    : res.fail(403, 'FORBIDDEN', '권한 부족');
+}
 
-  // TODO: DB 저장 / 분석 로직 추가
-  res.json({ message: "데이터 수신 완료", count: sensors.length });
+const router = Router();
+
+/** GET /api/v1/sensors */
+router.get('/', async (req, res) => {
+  const company_id = req.company_id;
+  const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
+  const size = Math.min(200, Math.max(1, parseInt(req.query.size ?? '20', 10)));
+  const offset = (page - 1) * size;
+
+  const orderSql = buildOrderBy(
+    req.query.sort,
+    ['created_at', 'model', 'sensor_type'],
+    'created_at DESC'
+  );
+
+  const [[{ cnt }]] = await pool.query(
+    'SELECT COUNT(*) cnt FROM sensor WHERE company_id=:company_id AND deleted_at IS NULL',
+    { company_id }
+  );
+
+  const [rows] = await pool.query(
+    `SELECT id, company_id, area_id, sensor_type, model, is_active, is_alarm,
+            pos_x, pos_y, created_at, updated_at
+       FROM sensor
+      WHERE company_id=:company_id AND deleted_at IS NULL
+      ${orderSql}
+      LIMIT :size OFFSET :offset`,
+    { company_id, size, offset }
+  );
+
+  return res.status(200).json({
+    is_sucsess: true,
+    message: '센서 목록 조회 성공',
+    data: rows,
+    meta: { page, size, total: cnt }
+  });
 });
 
-module.exports = router;
+/** POST /api/v1/sensors  (admin/manager) */
+router.post('/', mustRole('admin', 'manager'), async (req, res) => {
+  const company_id = req.company_id;
+  const {
+    area_id,
+    sensor_type,
+    model,
+    is_active = true,
+    is_alarm = true,
+    pos_x = null,
+    pos_y = null,
+  } = req.body ?? {};
+
+  if (!area_id || !sensor_type || !model) {
+    return res.fail(400, 'INVALID_REQUEST_BODY', 'area_id/sensor_type/model 필수');
+  }
+
+  // area 소속 검사(멀티테넌시 보장)
+  const [area] = await pool.query(
+    'SELECT id FROM area WHERE id=:area_id AND company_id=:company_id AND deleted_at IS NULL',
+    { area_id, company_id }
+  );
+  if (!area.length) return res.fail(403, 'FORBIDDEN', '해당 회사의 구역이 아님');
+
+  const [r1] = await pool.query(
+    `INSERT INTO sensor (company_id, area_id, sensor_type, model, is_active, is_alarm, pos_x, pos_y)
+     VALUES (:company_id, :area_id, :sensor_type, :model, :is_active, :is_alarm, :pos_x, :pos_y)`,
+    {
+      company_id,
+      area_id,
+      sensor_type,
+      model,
+      is_active: is_active ? 1 : 0,
+      is_alarm: is_alarm ? 1 : 0,
+      pos_x,
+      pos_y,
+    }
+  );
+
+  const [row] = await pool.query(
+    'SELECT * FROM sensor WHERE id=:id',
+    { id: r1.insertId }
+  );
+
+  return res.status(201).json({
+    is_sucsess: true,
+    message: '센서 생성 성공',
+    data: row[0]
+  });
+});
+
+/** PATCH /api/v1/sensors/:sensorId  (admin/manager) */
+router.patch('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
+  const company_id = req.company_id;
+  const id = +req.params.sensorId;
+  const { model = null, is_active = null, is_alarm = null, pos_x = null, pos_y = null } = req.body ?? {};
+
+  const [r1] = await pool.query(
+    `UPDATE sensor
+        SET model     = COALESCE(:model, model),
+            is_active = COALESCE(:is_active, is_active),
+            is_alarm  = COALESCE(:is_alarm, is_alarm),
+            pos_x     = COALESCE(:pos_x, pos_x),
+            pos_y     = COALESCE(:pos_y, pos_y),
+            updated_at = UTC_TIMESTAMP()
+      WHERE id=:id AND company_id=:company_id AND deleted_at IS NULL`,
+    { id, company_id, model, is_active, is_alarm, pos_x, pos_y }
+  );
+
+  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '센서 없음');
+
+  const [row] = await pool.query(
+    `SELECT id, model, is_active, is_alarm, pos_x, pos_y, updated_at
+       FROM sensor WHERE id=:id`,
+    { id }
+  );
+
+  return res.ok(row[0], '센서 수정 성공');
+});
+
+export default router;

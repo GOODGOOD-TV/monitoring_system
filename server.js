@@ -1,45 +1,54 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const morgan = require('morgan');
+import 'dotenv/config';
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
 
-const login = require('./routes/login');
-const logout = require('./routes/logout');
-const token = require('./routes/token');
-const sensors = require('./routes/sensors');
-const logs = require('./routes/logs');
-let register;
-try { register = require('./routes/register'); } catch (_) {}
+import { attachResHelpers } from './libs/http.js';
 
-const { errorHandler } = require('./routes/utils/error');
+import { authGuard } from './middlewares/authGuard.js';
+
+import authRoute from './routes/auth.js';
+import usersRoute from './routes/users.js';
+import companiesRoute from './routes/companies.js';
+import areasRoute from './routes/areas.js';
+import sensorsRoute from './routes/sensors.js';
+import sensorDataRoute from './routes/sensor-data.js';
+import thresholdsRoute from './routes/thresholds.js';
+import alarmsRoute from './routes/alarms.js';
+import notificationsRoute from './routes/notifications.js';
+import sysLogsRoute from './routes/sys-logs.js';
+import sensorIngestRoute from './routes/sensor-ingest.js';
 
 const app = express();
 
-// 🔧 기본 미들웨어 설정
-app.use(express.json()); // JSON 요청 본문 파싱
-app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true })); // CORS 허용
-app.use(helmet()); // 보안 헤더 설정
-app.use(rateLimit({ windowMs: 60_000, max: 200 })); // 요청 제한 (60초당 200회)
-app.use(morgan('dev')); // 요청 로깅
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
+app.use(cookieParser());
+app.use(attachResHelpers);
 
-// 🌐 공개 엔드포인트 (로그인/회원가입 등)
-if (register) app.use('/register', register);
-app.use('/login', login);
-app.use('/token', token);
-app.use('/logout', logout);
+app.get('/health', (_req, res) => res.ok({ status: 'UP' }, '헬스체크'));
 
-// 🔒 보호 엔드포인트 (토큰 필요)
-app.use('/sensors', sensors);
-app.use('/logs', logs);
+app.use('/api/v1/auth', authRoute); //인증
+app.use('/api/v1/users', authGuard, usersRoute); //유저 정보
+app.use('/api/v1/areas', authGuard, areasRoute); //구역 정보
+app.use('/api/v1/companies', authGuard, companiesRoute); //회사 정보
+app.use('/api/v1/sensors', authGuard, sensorsRoute); //센서 정보
+app.use('/api/v1/sensor-data', authGuard, sensorDataRoute); //센서 데이터
+app.use('/api/v1/thresholds', authGuard, thresholdsRoute); //임계값 정보
+app.use('/api/v1/alarms', authGuard, alarmsRoute); //알람 정보
+app.use('/api/v1/notifications', authGuard, notificationsRoute); //알람 발송
+app.use('/api/v1/sys-logs', authGuard, sysLogsRoute); //시스템 로그
 
-// 🗂️ 정적 파일 제공 (프론트엔드 빌드 결과)
-app.use(express.static('frontend'));
+app.use('/api/v1/sensor-data', authGuard, sensorIngestRoute); //센서 -> 알람 생성
 
-// ⚠️ 전역 에러 핸들러
-app.use(errorHandler);
+// 404
+app.use((req, res) => res.fail(404, 'NOT_FOUND', 'Not Found'));
 
-// 🚀 서버 실행
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`API listening on :${PORT}`));
+// 500
+app.use((err, _req, res, _next) => {
+  console.error(err);
+  res.fail(err.status ?? 500, err.code ?? 'INTERNAL_ERROR', err.message ?? 'Server Error', err.details ?? null);
+});
+
+const PORT = process.env.PORT ?? 3000;
+app.listen(PORT, () => console.log(`http://localhost:${PORT}`));
