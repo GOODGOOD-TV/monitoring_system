@@ -33,14 +33,14 @@ git clone https://github.com/GOODGOOD-TV/monitoring_system.git
 cd monitoring_system
 ```
 
-### 3. 데이터베이스 초기 설정(MariaDB)
+### 2. 데이터베이스 초기 설정(MariaDB)
 ```bash
 DB초기설정.txt 이용하여 구축
           or
 Sentory.sql 이용
 ```
 
-### 4. 백엔드 실행
+### 3. 백엔드 실행
 ```bash
 npm run dev
 ```
