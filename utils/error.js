@@ -1,0 +1,11 @@
+// routes/utils/error.js
+function errorHandler(err, req, res, _next) {
+  console.error(err);
+  const status = err.status || 500;
+  res.status(status).json({
+    ok: false,
+    code: err.code || 'INTERNAL',
+    message: err.message || 'Server error'
+  });
+}
+module.exports = { errorHandler };
