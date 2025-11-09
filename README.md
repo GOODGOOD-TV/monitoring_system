@@ -33,32 +33,18 @@ git clone https://github.com/GOODGOOD-TV/monitoring_system.git
 cd monitoring_system
 ```
 
-### 2. 환경 변수 설정
-`backend/.env.sample`을 참고해 `backend/.env` 파일을 생성합니다:
+### 2. 데이터베이스 초기 설정(MariaDB)
 ```bash
-cp backend/.env.sample backend/.env
+DB초기설정.txt 이용하여 구축
+          or
+Sentory.sql 이용
 ```
 
-### 3. 데이터베이스 실행
+### 3. 백엔드 실행
 ```bash
-docker compose up -d
-```
-
-### 4. 백엔드 실행
-```bash
-cd backend
-npm ci
 npm run dev
 ```
 서버: [http://localhost:3000](http://localhost:3000)
-
-### 5. 프론트엔드 실행
-```bash
-cd ../frontend
-npm ci
-npm run dev
-```
-클라이언트: [http://localhost:5173](http://localhost:5173)
 
 ---
 
@@ -66,21 +52,15 @@ npm run dev
 ```
 monitoring_system/
  ├─ backend/
- │   ├─ server.js
- │   ├─ routes/
- │   ├─ controllers/
- │   ├─ db.js
- │   ├─ middlewares/
- │   ├─ utils/
- │   └─ .env.sample
- │
+ ├─ server.js
+ ├─ libs/
+ ├─ middlewares/
+ ├─ routes/
  ├─ frontend/
  │   ├─ src/
  │   ├─ public/
  │   ├─ vite.config.js
  │   └─ package.json
- │
- ├─ docker-compose.yml
  ├─ README.md
  └─ .gitignore
 ```
@@ -101,18 +81,22 @@ monitoring_system/
 ## 🧑‍🤝‍🧑 팀 구성
 | 이름 | 역할 | 담당 |
 |------|------|------|
-| 김선한 | 백엔드 / DB | Express, MariaDB, 인증 |
-| 팀원 A | 프론트엔드 | React, 대시보드 UI |
-| 팀원 B | AI 분석 | 데이터 수집, 예측 알고리즘 |
+| 김선한 / 신재희 | 백엔드 / DB | Express, MariaDB, 인증 |
+| 방준혁 / 오세연 | 프론트엔드 | React, 대시보드 UI |
 
 ---
 
 ## 🗓️ 진행 상황
+#백엔드
 - [x] DB 및 서버 초기화
-- [x] 회원가입 / 로그인 API
-- [ ] 센서 데이터 수집 API
-- [ ] 예측 모델 통합
-- [ ] 관리자 대시보드
+- [x] 유저 정보 API
+- [ ] 센서 정보 및 알림 API
+- [ ] 시스템 로그
+
+#프론트엔드
+- [ ] 
+
+#인공지능 활용 모델
 
 ---
 
