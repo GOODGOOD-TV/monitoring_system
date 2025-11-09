@@ -36,9 +36,8 @@ cd monitoring_system
 ### 3. 데이터베이스 초기 설정(MariaDB)
 ```bash
 DB초기설정.txt 이용하여 구축
-or
+          or
 Sentory.sql 이용
-
 ```
 
 ### 4. 백엔드 실행
