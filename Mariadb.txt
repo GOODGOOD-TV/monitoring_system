@@ -1,0 +1,141 @@
+CREATE DATABASE sentory CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE sentory;
+
+-- 타임스탬프 기본 UTC
+SET time_zone = '+00:00';
+
+-- ENUM 정의는 직접 구현 불가하므로 VARCHAR + CHECK 제약으로 처리
+
+CREATE TABLE company (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uq_company_name (name)
+);
+
+CREATE TABLE users (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  company_id BIGINT NOT NULL,
+  employee_id VARCHAR(32) NOT NULL,
+  name VARCHAR(50) NOT NULL,
+  phone VARCHAR(32) NOT NULL,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('admin','manager','user') NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  deleted_at DATETIME,
+  UNIQUE KEY uq_users_company_emp (company_id, employee_id),
+  FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE
+);
+
+CREATE TABLE refresh_token (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  refresh_token_hash VARCHAR(255) NOT NULL UNIQUE,
+  ip VARCHAR(64) NOT NULL,
+  user_agent VARCHAR(255) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  deleted_at DATETIME NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE area (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  company_id BIGINT NOT NULL,
+  area_name VARCHAR(50) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uq_area_company_name (company_id, area_name),
+  FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE
+);
+
+CREATE TABLE sensor (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  company_id BIGINT NOT NULL,
+  area_id BIGINT NOT NULL,
+  sensor_type ENUM('humidity','temperature') NOT NULL,
+  model VARCHAR(50) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  is_alarm BOOLEAN NOT NULL DEFAULT TRUE,
+  pos_x DECIMAL(8,3),
+  pos_y DECIMAL(8,3),
+  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  deleted_at DATETIME NULL,
+  FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE,
+  FOREIGN KEY (area_id) REFERENCES area(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE sensor_data (
+  sensor_id BIGINT NOT NULL,
+  upload_at DATETIME NOT NULL,
+  data_no INT NOT NULL,
+  data_value FLOAT NOT NULL,
+  data_sum DOUBLE,
+  data_num INT,
+  PRIMARY KEY (sensor_id, upload_at, data_no),
+  FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE
+);
+
+CREATE TABLE threshold (
+  sensor_id BIGINT PRIMARY KEY,
+  lower_bound DOUBLE NOT NULL,
+  upper_bound DOUBLE NOT NULL,
+  updated_by BIGINT,
+  updated_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE,
+  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE alarm (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  company_id BIGINT NOT NULL,
+  sensor_id BIGINT NOT NULL,
+  sensor_type ENUM('humidity','temperature') NOT NULL,
+  message VARCHAR(255) NOT NULL,
+  value DOUBLE NOT NULL,
+  threshold_ref JSON NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  resolved_at DATETIME NULL,
+  resolved_by BIGINT NULL,
+  FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE,
+  FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE,
+  FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE notification (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  company_id BIGINT NOT NULL,
+  alarm_id BIGINT NOT NULL,
+  channel ENUM('email','sms','slack','webhook') NOT NULL,
+  target_id BIGINT NOT NULL,
+  status ENUM('PENDING','SENT','FAILED') NOT NULL,
+  message VARCHAR(255),
+  payload JSON,
+  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  sent_at DATETIME,
+  FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE,
+  FOREIGN KEY (alarm_id) REFERENCES alarm(id) ON DELETE CASCADE,
+  FOREIGN KEY (target_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE sys_log (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  company_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  action VARCHAR(64) NOT NULL,
+  description TEXT NOT NULL,
+  ip VARCHAR(64) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+INSERT INTO company (name)
+VALUES ('Sentory');
