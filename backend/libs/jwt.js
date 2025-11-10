@@ -1,10 +1,7 @@
 //토큰 관련 유틸
 import jwt from 'jsonwebtoken';
 
-<<<<<<< HEAD
 export const ACCESS_EXP_SEC = 1800;              // 30분
-=======
->>>>>>> a7ebe8fdfaa6bd8704c64de933a1190e6d02d9d2
 export const REFRESH_EXP_SEC = 60 * 60 * 24 * 14; // 14일
 
 const ACCESS_SECRET  = process.env.ACCESS_SECRET  ?? 'dev-access';
