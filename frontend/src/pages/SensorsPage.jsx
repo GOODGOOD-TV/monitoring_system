@@ -1,258 +1,157 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-/**
- * DB 없이 public/sensors.json에서 불러와서 렌더하는 버전1111
- * - 필터(위치/타입), 조회 버튼, 표, 페이지네이션 포함
- * - 인라인 스타일만 사용
- */
 export default function SensorsPage() {
   const [rows, setRows] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  // 필터 상태
-  const [zone, setZone] = useState("ALL");
-  const [stype, setStype] = useState("ALL");
-  const [fromDate, setFromDate] = useState(dayOffset(-1));
-  const [toDate, setToDate] = useState(dayOffset(0));
-  const [fromTime, setFromTime] = useState("09:00");
-  const [toTime, setToTime] = useState("23:59");
+  const [sort, setSort] = useState("created_at DESC");
 
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const baseHost = import.meta.env.VITE_API_BASE ?? "http://localhost:3000";
+  // const DEV_TOKEN = (import.meta.env.VITE_DEV_TOKEN || "").trim() || null;
+  const DEV_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiY29tcGFueV9pZCI6MSwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzYyNzg5NTYwLCJleHAiOjE3NjI3OTA0NjB9.ZZOblpWvEuW-tupCP_MRRfvl-sttCjH4bpS2j4WPXK8"
 
-  // 1) JSON 로드
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setErr("");
-        const res = await fetch("/sensors.json", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!alive) return;
-        setRows(Array.isArray(data) ? data : []);
-      } catch (e) {
-        setErr(`데이터 불러오기 실패: ${e.message}`);
-      } finally {
-        if (alive) setLoading(false);
+  const url = useMemo(() => {
+    const qs = new URLSearchParams({
+      page: String(page),
+      size: String(size),
+      sort,
+    });
+    return `${baseHost}/api/v1/sensors?${qs.toString()}`;
+  }, [baseHost, page, size, sort]);
+
+  async function load() {
+    setLoading(true);
+    setErr("");
+    try {
+      const headers = { Accept: "application/json" };
+      if (DEV_TOKEN) headers["Authorization"] = `Bearer ${DEV_TOKEN}`;
+
+      const res = await fetch(url, {
+        method: "GET",
+        headers,
+        credentials: "include",       // 세션/쿠키 안 쓰면 제거 가능
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status} ${res.statusText} :: ${text.slice(0,120)}`);
       }
-    })();
-    return () => { alive = false; };
-  }, []);
 
-  // 2) 필터 옵션
-  const zoneOptions = useMemo(
-    () => ["ALL", ...unique(rows.map((r) => r.zone))],
-    [rows]
-  );
-  const typeOptions = useMemo(
-    () => ["ALL", ...unique(rows.map((r) => r.type))],
-    [rows]
-  );
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Non-JSON response: ${ct} :: ${text.slice(0,120)}`);
+      }
 
-  // 3) 조회(필터 적용)
-  const applyFilter = () => {
-    let next = rows;
-    if (zone !== "ALL") next = next.filter((r) => r.zone === zone);
-    if (stype !== "ALL") next = next.filter((r) => r.type === stype);
-    // 날짜/시간 필터는 데모라 생략 (실서비스에선 timestamp 비교)
-    setFiltered(next);
-    setPage(1);
-  };
+      const json = await res.json(); // { is_sucsess, data, meta }
+      if (!json?.is_sucsess) throw new Error(json?.message || "API 실패");
 
-  // 최초 1회 자동 조회
-  useEffect(() => {
-    if (!loading && !err) applyFilter();
-    // eslint-disable-next-line
-  }, [loading, err, rows]);
+      setRows(Array.isArray(json.data) ? json.data : []);
+      setTotal(Number(json.meta?.total ?? 0));
+    } catch (e) {
+      console.error("[SensorsPage] fetch error:", e);
+      setErr(e.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  // 페이지 계산
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageData = filtered.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => { load(); /* eslint-disable-line */ }, [url]);
 
-  // 스타일
-  const wrap = { maxWidth: 1200, margin: "0 auto", padding: 16 };
-  const controlsRow = {
-    display: "grid",
-    gridTemplateColumns: "repeat(12, 1fr)",
-    gap: 8,
-    alignItems: "center",
-    marginBottom: 12,
-  };
-  const select = {
-    width: "100%",
-    padding: "8px 10px",
-    borderRadius: 8,
-    border: "1px solid #d1d5db",
-    fontSize: 14,
-    boxSizing: "border-box",
-    background: "#fff",
-  };
-  const input = select;
-  const button = (primary) => ({
-    padding: "10px 14px",
-    borderRadius: 999,
-    border: primary ? "1px solid #111" : "1px solid #d1d5db",
-    background: primary ? "#111" : "#fff",
-    color: primary ? "#fff" : "#111",
-    cursor: "pointer",
-  });
-  const tableWrap = { overflowX: "auto", borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff" };
-  const th = { textAlign: "left", padding: "10px 12px", fontSize: 13, background: "#f3f4f6", whiteSpace: "nowrap" };
-  const td = { padding: "10px 12px", fontSize: 13, borderTop: "1px solid #f1f5f9", whiteSpace: "nowrap" };
+  const totalPages = Math.max(1, Math.ceil(total / size));
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={wrap}>
-        <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>센서정보</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>센서정보</h1>
 
-        {/* 컨트롤 바 */}
-        <div style={controlsRow}>
-          <div style={{ gridColumn: "span 2" }}>
-            <select value={zone} onChange={(e) => setZone(e.target.value)} style={select}>
-              {zoneOptions.map((z) => (
-                <option key={z} value={z}>{`위치 ${z}`}</option>
+        <select value={sort} onChange={(e)=>{setPage(1); setSort(e.target.value);}} style={sel}>
+          <option value="created_at DESC">최근 등록 순</option>
+          <option value="created_at ASC">오래된 순</option>
+          <option value="model ASC">모델명 ↑</option>
+          <option value="model DESC">모델명 ↓</option>
+          <option value="sensor_type ASC">센서타입 ↑</option>
+          <option value="sensor_type DESC">센서타입 ↓</option>
+        </select>
+
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <select value={size} onChange={(e)=>{setPage(1); setSize(Number(e.target.value));}} style={sel}>
+            {[10,20,50,100,200].map(n => <option key={n} value={n}>{n}개</option>)}
+          </select>
+          <button onClick={load} disabled={loading} style={btnSecondary()}>
+            {loading ? "불러오는 중…" : "↻ 새로고침"}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ background: "#e5e7eb", borderRadius: 8, padding: 16, minHeight: 360 }}>
+        {err && <div style={{ color: "#dc2626", marginBottom: 12 }}>{err}</div>}
+
+        <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background:"#f8fafc" }}>
+                <Th>ID</Th>
+                <Th>모델</Th>
+                <Th>센서타입</Th>
+                <Th>활성</Th>
+                <Th>알람</Th>
+                <Th>구역ID</Th>
+                <Th>등록일</Th>
+                <Th>수정일</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {!loading && rows.length === 0 && (
+                <tr><td colSpan={8} style={{ padding:16, textAlign:"center", color:"#64748b" }}>데이터가 없습니다.</td></tr>
+              )}
+              {rows.map(r => (
+                <tr key={r.id} style={{ background:"#fff" }}>
+                  <Td>{r.id}</Td>
+                  <Td>{r.model ?? "-"}</Td>
+                  <Td>{r.sensor_type ?? "-"}</Td>
+                  <Td><Badge on={toNum(r.is_active) === 1}>{toNum(r.is_active) === 1 ? "ON" : "OFF"}</Badge></Td>
+                  <Td><Badge on={toNum(r.is_alarm) === 1}>{toNum(r.is_alarm) === 1 ? "ON" : "OFF"}</Badge></Td>
+                  <Td>{r.area_id ?? "-"}</Td>
+                  <Td>{fmt(r.created_at)}</Td>
+                  <Td>{fmt(r.updated_at)}</Td>
+                </tr>
               ))}
-            </select>
-          </div>
-          <div style={{ gridColumn: "span 2" }}>
-            <select value={stype} onChange={(e) => setStype(e.target.value)} style={select}>
-              {typeOptions.map((t) => (
-                <option key={t} value={t}>{`센서타입 ${t}`}</option>
-              ))}
-            </select>
-          </div>
-          <div style={{ gridColumn: "span 3" }}>
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={input} />
-          </div>
-          <div style={{ gridColumn: "span 1" }}>
-            <input type="time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} style={input} />
-          </div>
-          <div style={{ gridColumn: "span 3" }}>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={input} />
-          </div>
-          <div style={{ gridColumn: "span 1" }}>
-            <input type="time" value={toTime} onChange={(e) => setToTime(e.target.value)} style={input} />
-          </div>
+            </tbody>
+          </table>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-          <button onClick={applyFilter} style={button(false)}>조회</button>
+        <div style={{ display:"flex", justifyContent:"center", gap:10, marginTop:12 }}>
+          <button style={btnSecondary()} onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={loading || page<=1}>이전</button>
+          <span style={{ alignSelf:"center", color:"#475569" }}>{page} / {totalPages} (총 {total.toLocaleString()}건)</span>
+          <button style={btnSecondary()} onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={loading || page>=totalPages}>다음</button>
         </div>
-
-        {/* 로딩/에러 */}
-        {loading && <div style={{ padding: 12 }}>불러오는 중…</div>}
-        {err && <div style={{ padding: 12, color: "#dc2626" }}>{err}</div>}
-
-        {/* 표 */}
-        {!loading && !err && (
-          <>
-            <div style={tableWrap}>
-              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
-                <thead>
-                  <tr>
-                    <th style={th}>위치</th>
-                    <th style={th}>센서ID</th>
-                    <th style={th}>센서타입</th>
-                    <th style={th}>측정항목</th>
-                    <th style={th}>현재값</th>
-                    <th style={th}>평균값</th>
-                    <th style={{ ...th, textAlign: "right" }}>실적률</th>
-                    <th style={th}>상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageData.map((r) => (
-                    <tr key={r.id}>
-                      <td style={td}>{r.zone}</td>
-                      <td style={td}>{r.id}</td>
-                      <td style={td}>{r.type}</td>
-                      <td style={td}>{r.item}</td>
-                      <td style={td}>{fmt(r.value, r.item)}</td>
-                      <td style={td}>{fmt(r.avg, r.item)}</td>
-                      <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{r.rate?.toFixed?.(1) ?? r.rate}%</td>
-                      <td style={{ ...td, color: r.status === "경고" ? "#dc2626" : "#065f46", fontWeight: 700 }}>
-                        {r.status}
-                      </td>
-                    </tr>
-                  ))}
-                  {pageData.length === 0 && (
-                    <tr>
-                      <td style={{ ...td, textAlign: "center" }} colSpan={8}>
-                        데이터가 없습니다.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <Pagination
-              page={page}
-              totalPages={Math.max(1, Math.ceil(filtered.length / pageSize))}
-              onChange={setPage}
-              style={{ marginTop: 12 }}
-            />
-          </>
-        )}
       </div>
     </div>
   );
 }
 
-/* ---------------- 유틸/컴포넌트 ---------------- */
-
-function unique(arr) { return Array.from(new Set(arr)); }
-function fmt(v, kind) {
-  if (v == null) return "-";
-  if (kind === "온도") return `${v}°C`;
-  if (kind === "습도") return `${v}%`;
-  return String(v);
+/* UI helpers */
+function Th({ children }) {
+  return <th style={{ textAlign:"left", padding:"10px 12px", fontSize:12, color:"#334155", borderBottom:"1px solid #e5e7eb" }}>{children}</th>;
 }
-function dayOffset(n) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+function Td({ children }) {
+  return <td style={{ padding:"12px", borderBottom:"1px solid #f1f5f9", fontSize:14 }}>{children}</td>;
 }
-function Pagination({ page, totalPages, onChange, style }) {
-  const btn = (active) => ({
-    padding: "6px 10px",
-    borderRadius: 6,
-    border: "1px solid #d1d5db",
-    background: active ? "#111" : "#fff",
-    color: active ? "#fff" : "#111",
-    cursor: "pointer",
-    marginRight: 6,
-    minWidth: 34,
-    textAlign: "center",
-  });
-  const numbers = visiblePages(page, totalPages);
-  return (
-    <div style={{ display: "flex", justifyContent: "center", ...style }}>
-      <button onClick={() => onChange(Math.max(1, page - 1))} style={btn(false)} disabled={page === 1}>‹</button>
-      {numbers.map((p, i) =>
-        p === "…" ? <span key={`e${i}`} style={{ padding: "6px 8px", marginRight: 6 }}>…</span>
-                  : <button key={p} onClick={() => onChange(p)} style={btn(p === page)}>{p}</button>
-      )}
-      <button
-        onClick={() => onChange(Math.min(totalPages, page + 1))}
-        style={btn(false)}
-        disabled={page === totalPages}
-      >›</button>
-    </div>
-  );
+function Badge({ on, children }) {
+  return <span style={{
+    display:"inline-block", minWidth:44, textAlign:"center", padding:"2px 8px",
+    borderRadius:999, fontSize:12, fontWeight:700,
+    color: on ? "#065f46" : "#7f1d1d",
+    background: on ? "#d1fae5" : "#fee2e2",
+    border: `1px solid ${on ? "#10b981" : "#f87171"}`
+  }}>{children}</span>;
 }
-function visiblePages(current, total) {
-  const out = [];
-  const add = (x) => out.push(x);
-  if (total <= 9) { for (let i = 1; i <= total; i++) add(i); return out; }
-  add(1);
-  if (current > 4) add("…");
-  for (let i = Math.max(2, current - 2); i <= Math.min(total - 1, current + 2); i++) add(i);
-  if (current < total - 3) add("…");
-  add(total);
-  return out;
-}
+const sel = { height:36, padding:"0 10px", borderRadius:8, border:"1px solid #e5e7eb", background:"#fff" };
+function btnSecondary(){ return { padding:"8px 12px", borderRadius:8, border:"1px solid #e5e7eb", background:"#fff", color:"#111827", cursor:"pointer" }; }
+function toNum(v){ const n = Number(v); return Number.isFinite(n) ? n : 0; }
+function fmt(v){ if(!v) return "-"; try { return new Date(v).toLocaleString(); } catch { return String(v);} }
