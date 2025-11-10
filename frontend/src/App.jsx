@@ -14,7 +14,7 @@ import SensorDetailPage from "./pages/SensorDetailPage.jsx";
 import SensorEditPage from "./pages/SensorEditPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
-import RegisterPage from "./pages/registerPage.jsx";  
+import RegisterPage from "./pages/RegisterPage.jsx";  
 
 
 // 아직 미구현 페이지는 임시 박스로
