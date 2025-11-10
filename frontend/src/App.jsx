@@ -13,6 +13,9 @@ import ZoneSensorsPage from "./pages/ZoneSensorsPage.jsx";
 import SensorDetailPage from "./pages/SensorDetailPage.jsx";
 import SensorEditPage from "./pages/SensorEditPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
+import RegisterPage from "./pages/RegisterPage.jsx";  
+
 
 // 아직 미구현 페이지는 임시 박스로
 const box = { maxWidth: 1200, margin: "0 auto", padding: 24 };
@@ -32,6 +35,8 @@ export default function App() {
           <Route path="/" element={<Navigate to="/monitoring" replace />} />
 
           {/* 실제 페이지들 */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/monitoring" element={<MonitoringPage />} />
           <Route path="/sensors"    element={<SensorsPage />} />
           <Route path="/analytics"  element={<AnalyticsPage />} />
