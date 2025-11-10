@@ -1,12 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../libs/db.js';
 import { buildOrderBy } from '../libs/order.js';
-
-function mustRole(...roles) {
-  return (req, res, next) => roles.includes(req.user?.role)
-    ? next()
-    : res.fail(403, 'FORBIDDEN', '권한 부족');
-}
+import { mustRole } from '../middlewares/mustRole.js';
 
 const router = Router();
 

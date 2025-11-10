@@ -1,13 +1,8 @@
 import { Router } from 'express';
 import { pool } from '../libs/db.js';
+import { mustRole } from '../middlewares/mustRole.js';
 
 const router = Router();
-
-function mustRole(...roles) {
-  return (req, res, next) => roles.includes(req.user?.role)
-    ? next()
-    : res.fail(403, 'FORBIDDEN', '권한 부족');
-}
 
 /**
  * GET /api/v1/thresholds
