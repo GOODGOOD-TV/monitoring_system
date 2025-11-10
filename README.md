@@ -52,10 +52,11 @@ npm run dev
 ```
 monitoring_system/
  ├─ backend/
- ├─ server.js
- ├─ libs/
- ├─ middlewares/
- ├─ routes/
+ │   ├─ server.js
+ │   ├─ libs/
+ │   ├─ middlewares/
+ │   ├─ routes/
+ │   └─ package.json
  ├─ frontend/
  │   ├─ src/
  │   ├─ public/
