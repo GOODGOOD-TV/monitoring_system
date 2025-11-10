@@ -5,7 +5,7 @@ const AFTER_SIGNUP_PATH = "/login";           // 가입 성공 후 로그인 화
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
-    company_code: "",
+    company_name: "",
     employee_id: "",
     name: "",
     phone: "",
@@ -36,7 +36,7 @@ export default function RegisterPage() {
   };
 
   const validate = () => {
-    if (!form.company_code.trim()) return "기업 코드를 입력해 주세요.";
+    if (!form.company_name.trim()) return "기업 코드를 입력해 주세요.";
     if (!form.employee_id.trim()) return "사원번호를 입력해 주세요.";
     if (!form.name.trim()) return "이름을 입력해 주세요.";
     if (!form.email.trim()) return "이메일을 입력해 주세요.";
@@ -56,17 +56,15 @@ export default function RegisterPage() {
     try {
       // 백엔드에 맞게 엔드포인트 수정 가능: /api/v1/auth/register (권장)
       const body = {
-        company_code: form.company_code,
-        employee_id: form.employee_id,
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        password: form.password,
-        role: "user",     // 기본 권한
-        is_active: 1,     // 활성화
+        "company_name": form.company_name,
+        "employee_id": form.employee_id,
+        "name": form.name,
+        "phone": form.phone,
+        "email": form.email,
+        "password": form.password
       };
 
-      await api("/api/v1/auth/register", { method: "POST", body });
+      await api("http://localhost:3000/api/v1/auth/register", { method: "POST", body });
 
       setMsg("회원가입 완료! 로그인 화면으로 이동합니다.");
       setTimeout(() => window.location.assign(AFTER_SIGNUP_PATH), 700);
@@ -87,8 +85,8 @@ export default function RegisterPage() {
       <form onSubmit={handleSubmit} style={{ width: 420 }}>
         <div style={grid2}>
           <div>
-            <label style={label}>기업 코드</label>
-            <input name="company_code" value={form.company_code} onChange={onChange} style={input} />
+            <label style={label}>기업 이름</label>
+            <input name="company_name" value={form.company_name} onChange={onChange} style={input} />
           </div>
           <div>
             <label style={label}>사원번호</label>
