@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 /**
- * DB 없이 public/sensors.json에서 불러와서 렌더하는 버전
+ * DB 없이 public/sensors.json에서 불러와서 렌더하는 버전1111
  * - 필터(위치/타입), 조회 버튼, 표, 페이지네이션 포함
  * - 인라인 스타일만 사용
  */

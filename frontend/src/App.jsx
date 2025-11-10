@@ -8,6 +8,11 @@ import Navbar from "./components/Navbar.jsx";
 import MonitoringPage from "./pages/MonitoringPage.jsx";
 import SensorsPage from "./pages/SensorsPage.jsx";
 import AnalyticsPage from "./pages/AnalyticsPage.jsx";
+import ZonesPage from "./pages/ZonesPage.jsx";
+import ZoneSensorsPage from "./pages/ZoneSensorsPage.jsx";
+import SensorDetailPage from "./pages/SensorDetailPage.jsx";
+import SensorEditPage from "./pages/SensorEditPage.jsx";
+import SettingsPage from "./pages/SettingsPage.jsx";
 
 // 아직 미구현 페이지는 임시 박스로
 const box = { maxWidth: 1200, margin: "0 auto", padding: 24 };
@@ -30,9 +35,12 @@ export default function App() {
           <Route path="/monitoring" element={<MonitoringPage />} />
           <Route path="/sensors"    element={<SensorsPage />} />
           <Route path="/analytics"  element={<AnalyticsPage />} />
-
+          <Route path="/zones" element={<ZonesPage />} />
+          <Route path="/zones/:zoneId" element={<ZoneSensorsPage />} />
+          <Route path="/zones/:zoneId/sensors/:sensorId" element={<SensorDetailPage />} />
+          <Route path="/zones/:zoneId/sensors/:sensorId/edit" element={<SensorEditPage />} />
+          <Route path="/settings"   element={<SettingsPage />} />
           {/* 임시 페이지들 (원하면 추후 실제 파일로 교체) */}
-          <Route path="/zones"      element={<Zones />} />
           <Route path="/settings"   element={<Settings />} />
 
           {/* 정의되지 않은 경로 → 모니터링으로 */}
