@@ -1,0 +1,10 @@
+[
+  { "id": "S-100", "zone": "무연 냉장고",  "type": "DHT22", "item": "온도", "value": 25.2, "avg": 24.9, "rate": 51.4, "status": "정상" },
+  { "id": "S-101", "zone": "무연 냉장고2", "type": "SHT31", "item": "습도", "value": 59.7, "avg": 58.2, "rate": 53.9, "status": "정상" },
+  { "id": "S-102", "zone": "수입검사실",  "type": "DHT11", "item": "온도", "value": 22.0, "avg": 22.5, "rate": 42.0, "status": "정상" },
+  { "id": "S-103", "zone": "SP9",        "type": "DHT22", "item": "습도", "value": 65.2, "avg": 62.0, "rate": 60.0, "status": "경고" },
+  { "id": "S-104", "zone": "SP8",        "type": "SHT31", "item": "온도", "value": 27.2, "avg": 26.8, "rate": 55.0, "status": "정상" },
+  { "id": "S-105", "zone": "SP2",        "type": "DHT22", "item": "습도", "value": 37.0, "avg": 39.3, "rate": 56.7, "status": "정상" },
+  { "id": "S-106", "zone": "SP9",        "type": "SHT31", "item": "온도", "value": 23.8, "avg": 24.2, "rate": 58.3, "status": "정상" },
+  { "id": "S-107", "zone": "SP8",        "type": "DHT11", "item": "습도", "value": 72.0, "avg": 69.0, "rate": 27.0, "status": "경고" }
+]
