@@ -23,7 +23,7 @@ export async function processSensorReading(conn, { sensor_id, upload_at, data_no
   if (!sensor) return { effect: 'SKIP_NO_SENSOR' };
   if (!sensor.is_alarm) return { effect: 'SKIP_ALARM_OFF' };
 
-  const [[th]] = await conn.query(`SELECT lower_bound, upper_bound FROM thresholds WHERE sensor_id=:sensor_id`, { sensor_id });
+  const [[th]] = await conn.query(`SELECT lower_bound, upper_bound FROM threshold WHERE sensor_id=:sensor_id`, { sensor_id });
   if (!th) return { effect: 'SKIP_NO_THRESHOLD' };
 
   // 3) 경계 비교
@@ -41,7 +41,7 @@ export async function processSensorReading(conn, { sensor_id, upload_at, data_no
   // 최근 미해제 알람
   const [[openAlarm]] = await conn.query(
     `SELECT a.id, a.message, a.created_at
-       FROM alarms a
+       FROM alarm a
        WHERE a.sensor_id = :sensor_id AND a.resolved_at IS NULL
        ORDER BY a.id DESC LIMIT 1`,
     { sensor_id }
@@ -56,7 +56,7 @@ export async function processSensorReading(conn, { sensor_id, upload_at, data_no
       if (openAlarm.message === direction) {
         const [[{ recent }]] = await conn.query(
           `SELECT TIMESTAMPDIFF(SECOND, a.created_at, ${nowUtcSql()}) recent
-             FROM alarms a WHERE a.id=:id`, { id: openAlarm.id }
+             FROM alarm a WHERE a.id=:id`, { id: openAlarm.id }
         );
         if (recent < ALARM_COOLDOWN_SEC) {
           // 상태 업데이트만 하고 종료
