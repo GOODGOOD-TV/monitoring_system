@@ -32,7 +32,7 @@ export default function App() {
       <main style={{ flex: 1, background: "#e5e7eb" }}>
         <Routes>
           {/* 기본 진입시 모니터링으로 */}
-          <Route path="/" element={<Navigate to="/monitoring" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
           {/* 실제 페이지들 */}
           <Route path="/login" element={<LoginPage />} />

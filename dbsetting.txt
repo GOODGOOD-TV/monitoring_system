@@ -74,6 +74,7 @@ CREATE TABLE sensor (
 
 CREATE TABLE sensor_data (
   sensor_id BIGINT NOT NULL,
+  sensor_type ENUM('humidity','temperature') NOT NULL,
   upload_at DATETIME NOT NULL,
   data_no INT NOT NULL,
   data_value FLOAT NOT NULL,
