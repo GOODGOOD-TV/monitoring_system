@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
 } from "recharts";
-
+import { api, getAccessToken } from "../lib/api.js";
 /**
  * 요구사항:
  *  - 하드코딩 토큰을 Authorization 헤더에 실어서 MonitoringPage처럼 호출
@@ -33,26 +33,13 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  // 공통 헤더(하드코딩 토큰)
-  const headers = {
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-    "Authorization": `Bearer ${DEV_TOKEN}`,
-  };
-
   // 센서 목록
   async function fetchSensors() {
     setErr("");
     try {
-      const url = `${API_BASE}/api/v1/sensors?page=1&size=200&sort=created_at%20DESC`;
-      console.log("[GET] sensors:", url);
-      const res = await fetch(url, { method: "GET", headers });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} ${res.statusText} :: ${text.slice(0,120)}`);
-      }
-      const json = await res.json();
-      console.log("[RESP sensors]", json);
+      if (!getAccessToken()) { window.location.assign("/login"); return; }
+      const q = new URLSearchParams({ page: "1", size: "200", sort: "created_at DESC" });
+      const json = await api(`/api/v1/sensors?${q.toString()}`);
       if (!json?.is_sucsess) throw new Error(json?.message || "센서 목록 실패");
 
       const list = Array.isArray(json.data) ? json.data : [];
@@ -70,25 +57,21 @@ export default function AnalyticsPage() {
     setLoading(true);
     setErr("");
     try {
-      // 백엔드가 UTC를 기대하면 아래 두 줄을 toISOString()으로 바꿔봐
+      if (!getAccessToken()) { window.location.assign("/login"); return; }
+
+      // 백엔드가 UTC 기대하면 toISOString으로 변환
       const from = `${fromDate}T${fromTime}:00`;
       const to   = `${toDate}T${toTime}:00`;
 
-      const url = `${API_BASE}/api/v1/sensor-data?sensor_id=${encodeURIComponent(sensorId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&bucket=${encodeURIComponent(bucket)}`;
-      console.log("[GET] series:", url);
-
-      const res = await fetch(url, { method: "GET", headers });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} ${res.statusText} :: ${text.slice(0,120)}`);
-      }
-      const json = await res.json();
-      console.log("[RESP series]", json);
-
+      const q = new URLSearchParams({
+        sensor_id: String(sensorId),
+        from, to, bucket,
+      });
+      const json = await api(`/api/v1/sensor-data?${q.toString()}`);
       if (!json?.is_sucsess) throw new Error(json?.message || "데이터 조회 실패");
 
       const data = (json.data || []).map((d) => {
-        const ts = d.ts ?? d.timestamp ?? d.time;
+        const ts = d.ts ?? d.timestamp ?? d.time ?? d.upload_at ?? d.upload_dtm ?? d.created_at;
         return {
           label: safeTime(ts),
           temp: toNum(d.temp ?? d.temperature ?? d.t),

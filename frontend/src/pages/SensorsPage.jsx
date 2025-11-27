@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom"; // ← 추가
+import { api, getAccessToken } from "../lib/api.js"; // ← 추가
 
 export default function SensorsPage() {
   const [rows, setRows] = useState([]);
@@ -11,8 +13,7 @@ export default function SensorsPage() {
   const [sort, setSort] = useState("created_at DESC");
 
   const baseHost = import.meta.env.VITE_API_BASE ?? "http://localhost:3000";
-  // const DEV_TOKEN = (import.meta.env.VITE_DEV_TOKEN || "").trim() || null;
-  const DEV_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiY29tcGFueV9pZCI6MSwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzYyNzg5NTYwLCJleHAiOjE3NjI3OTA0NjB9.ZZOblpWvEuW-tupCP_MRRfvl-sttCjH4bpS2j4WPXK8"
+  const navigate = useNavigate(); 
 
   const url = useMemo(() => {
     const qs = new URLSearchParams({
@@ -27,27 +28,12 @@ export default function SensorsPage() {
     setLoading(true);
     setErr("");
     try {
-      const headers = { Accept: "application/json" };
-      if (DEV_TOKEN) headers["Authorization"] = `Bearer ${DEV_TOKEN}`;
+      // 토큰 없으면 로그인으로
+      if (!getAccessToken()) { window.location.assign("/login"); return; }
 
-      const res = await fetch(url, {
-        method: "GET",
-        headers,
-        credentials: "include",       // 세션/쿠키 안 쓰면 제거 가능
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} ${res.statusText} :: ${text.slice(0,120)}`);
-      }
-
-      const ct = res.headers.get("content-type") || "";
-      if (!ct.includes("application/json")) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Non-JSON response: ${ct} :: ${text.slice(0,120)}`);
-      }
-
-      const json = await res.json(); // { is_sucsess, data, meta }
+      // api()는 credentials: "include" + 401→refresh까지 처리
+      const json = await api(`/api/v1/sensors?${new URLSearchParams({ page, size, sort })}`);
+      
       if (!json?.is_sucsess) throw new Error(json?.message || "API 실패");
 
       setRows(Array.isArray(json.data) ? json.data : []);
