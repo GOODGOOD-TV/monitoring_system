@@ -1,3 +1,4 @@
+// backend/routes/sensors.js
 import { Router } from 'express';
 import { pool } from '../libs/db.js';
 import { buildOrderBy } from '../libs/order.js';
@@ -5,7 +6,7 @@ import { mustRole } from '../middlewares/mustRole.js';
 
 const router = Router();
 
-/** GET /api/v1/sensors */
+/** GET /api/v1/sensors  - 센서 목록 */
 router.get('/', async (req, res) => {
   const company_id = req.company_id;
   const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
@@ -61,6 +62,57 @@ router.get('/', async (req, res) => {
     data: rows,
     meta: { page, size, total: cnt },
   });
+});
+
+/** GET /api/v1/sensors/:sensorId - 센서 한 개 조회 */
+router.get('/:sensorId', async (req, res) => {
+  const company_id = req.company_id;
+  const id = Number(req.params.sensorId);
+  if (!id) return res.fail(400, 'BAD_REQUEST', '잘못된 센서 ID');
+
+  const [rows] = await pool.query(
+    `SELECT id, company_id, area_id, sensor_type, model, is_active, is_alarm,
+            pos_x, pos_y, created_at, updated_at
+       FROM sensor
+      WHERE id=:id AND company_id=:company_id AND deleted_at IS NULL`,
+    { id, company_id }
+  );
+
+  if (!rows.length) return res.fail(404, 'NOT_FOUND', '센서 없음');
+
+  return res.ok(rows[0], '센서 조회 성공');
+});
+
+/** GET /api/v1/sensors/:sensorId/data - 센서 데이터 조회 */
+router.get('/:sensorId/data', async (req, res) => {
+  const company_id = req.company_id;
+  const id = Number(req.params.sensorId);
+  if (!id) return res.fail(400, 'BAD_REQUEST', '잘못된 센서 ID');
+
+  const limit = Math.min(
+    500,
+    Math.max(1, parseInt(req.query.limit ?? '50', 10))
+  );
+
+  // 이 센서가 이 회사 소속인지 확인
+  const [sensorRows] = await pool.query(
+    `SELECT id 
+       FROM sensor 
+      WHERE id=:id AND company_id=:company_id AND deleted_at IS NULL`,
+    { id, company_id }
+  );
+  if (!sensorRows.length) return res.fail(404, 'NOT_FOUND', '센서 없음');
+
+  const [rows] = await pool.query(
+    `SELECT sensor_id, upload_at, data_no, data_value, data_sum, data_num
+       FROM sensor_data
+      WHERE sensor_id=:id
+      ORDER BY upload_at DESC, data_no DESC
+      LIMIT :limit`,
+    { id, limit }
+  );
+
+  return res.ok(rows, '센서 데이터 조회 성공');
 });
 
 /** POST /api/v1/sensors  (admin/manager) */
@@ -155,6 +207,7 @@ router.patch('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
 
   const [r1] = await pool.query(
     `UPDATE sensor
+<<<<<<< Updated upstream
         SET model         = COALESCE(:model, model),
             is_active     = COALESCE(:is_active, is_active),
             is_alarm      = COALESCE(:is_alarm, is_alarm),
@@ -163,6 +216,14 @@ router.patch('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
             pos_x         = COALESCE(:pos_x, pos_x),
             pos_y         = COALESCE(:pos_y, pos_y),
             updated_at    = UTC_TIMESTAMP()
+=======
+        SET model      = COALESCE(:model, model),
+            is_active  = COALESCE(:is_active, is_active),
+            is_alarm   = COALESCE(:is_alarm, is_alarm),
+            pos_x      = COALESCE(:pos_x, pos_x),
+            pos_y      = COALESCE(:pos_y, pos_y),
+            updated_at = UTC_TIMESTAMP()
+>>>>>>> Stashed changes
       WHERE id=:id AND company_id=:company_id AND deleted_at IS NULL`,
     {
       id,
