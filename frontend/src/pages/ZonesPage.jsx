@@ -1,22 +1,60 @@
+// src/pages/ZonesPage.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getZones } from "../services/zones";
-import { api } from "../lib/api.js";
+import { getZones, createZone } from "../services/zones";
 
 export default function ZonesPage() {
   const [zones, setZones] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  // 추가 폼 상태
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [adding, setAdding] = useState(false);
+
   const navigate = useNavigate();
 
+  async function loadZones() {
+    setLoading(true);
+    setErr("");
+    try {
+      const list = await getZones();
+      setZones(list);
+    } catch (e) {
+      setErr(e.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    (async () => {
-      const res = await getZones();    // [{ id, area_name, ... }]
-      setZones(res);
-    })();
+    loadZones();
   }, []);
+
+  async function handleAddZone(e) {
+    e?.preventDefault();
+    if (!newName.trim()) return;
+
+    setAdding(true);
+    try {
+      await createZone({ name: newName.trim() });
+      setNewName("");
+      setShowAdd(false);
+      await loadZones();
+    } catch (e) {
+      alert(e.message || "구역 생성 실패");
+    } finally {
+      setAdding(false);
+    }
+  }
 
   return (
     <div style={{ padding: 16 }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>구역관리</h1>
+
+      {err && <div style={{ color: "#dc2626", marginBottom: 8 }}>{err}</div>}
+
       <div
         style={{
           background: "#e5e7eb",
@@ -26,6 +64,55 @@ export default function ZonesPage() {
           minHeight: 420,
         }}
       >
+        {/* 상단에 구역 추가 폼 (토글) */}
+        {showAdd && (
+          <form
+            onSubmit={handleAddZone}
+            style={{
+              marginBottom: 24,
+              padding: 12,
+              borderRadius: 8,
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb",
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="구역 이름"
+              style={{
+                width: 240,
+                padding: "8px 10px",
+                borderRadius: 6,
+                border: "1px solid #d4d4d8",
+                fontSize: 14,
+              }}
+            />
+            <button
+              type="submit"
+              disabled={adding || !newName.trim()}
+              style={primaryBtn}
+            >
+              {adding ? "추가 중…" : "추가"}
+            </button>
+            <button
+              type="button"
+              disabled={adding}
+              onClick={() => {
+                setShowAdd(false);
+                setNewName("");
+              }}
+              style={cancelBtn}
+            >
+              취소
+            </button>
+          </form>
+        )}
+
         <div
           style={{
             display: "grid",
@@ -44,12 +131,16 @@ export default function ZonesPage() {
             </button>
           ))}
 
-          <button
-            title="구역 추가"
-            style={{ ...tileBtn, border: "2px dashed #111", fontSize: 28 }}
-          >
-            +
-          </button>
+          {/* 🔥 구역 추가 버튼 */}
+          {!showAdd && (
+            <button
+              title="구역 추가"
+              style={{ ...tileBtn, border: "2px dashed #111", fontSize: 28 }}
+              onClick={() => setShowAdd(true)}
+            >
+              +
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -68,4 +159,23 @@ const tileBtn = {
   cursor: "pointer",
   fontSize: 16,
   fontWeight: 600,
+};
+
+const primaryBtn = {
+  padding: "8px 12px",
+  borderRadius: 6,
+  border: "none",
+  background: "#111827",
+  color: "#fff",
+  fontSize: 13,
+  cursor: "pointer",
+};
+const cancelBtn = {
+  padding: "8px 12px",
+  borderRadius: 6,
+  border: "1px solid #e5e7eb",
+  background: "#fff",
+  color: "#111827",
+  fontSize: 13,
+  cursor: "pointer",
 };

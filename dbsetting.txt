@@ -62,7 +62,9 @@ CREATE TABLE sensor (
   sensor_type ENUM('humidity','temperature') NOT NULL,
   model VARCHAR(50) NOT NULL,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  is_alarm BOOLEAN NOT NULL DEFAULT TRUE,
+  is_alarm  BOOLEAN NOT NULL DEFAULT TRUE,
+  threshold_min DECIMAL(10,3) NULL,
+  threshold_max DECIMAL(10,3) NULL,
   pos_x DECIMAL(8,3),
   pos_y DECIMAL(8,3),
   created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
@@ -82,16 +84,6 @@ CREATE TABLE sensor_data (
   data_num INT,
   PRIMARY KEY (sensor_id, upload_at, data_no),
   FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE
-);
-
-CREATE TABLE threshold (
-  sensor_id BIGINT PRIMARY KEY,
-  lower_bound DOUBLE NOT NULL,
-  upper_bound DOUBLE NOT NULL,
-  updated_by BIGINT,
-  updated_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
-  FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE,
-  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE alarm (

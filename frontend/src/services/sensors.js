@@ -1,30 +1,7 @@
 // sensors.js — 구역(zone)별 센서 mock 데이터
 import { api } from "../lib/api.js";
   
-  // ✅ 랜덤 센서 생성 함수 (존재하지 않는 zone 클릭 시 사용)
-  function generateRandomSensors(zoneId) {
-    const count = Math.random() > 0.5 ? 1 : 2; // 1~2개
-    const list = [];
-    for (let i = 1; i <= count; i++) {
-      const temp = +(20 + Math.random() * 8).toFixed(1); // 20~28°C
-      const hum = +(45 + Math.random() * 20).toFixed(1); // 45~65%
-      list.push({
-        id: `s-${zoneId.toLowerCase()}-${i.toString().padStart(2, "0")}`,
-        zoneId,
-        name: `Auto-${zoneId}-${i}`,
-        status: "정상",
-        temp,
-        hum,
-        tempLow: 20,
-        tempHigh: 28,
-        humLow: 40,
-        humHigh: 65,
-      });
-    }
-    return list;
-  }
-  
-  // ✅ zone별 센서 조회 함수
+  // 구역별 센서 조회 함수
   export async function getSensorsByZone(zoneId) {
     if (!zoneId) return [];
 
@@ -45,18 +22,42 @@ import { api } from "../lib/api.js";
     return Array.isArray(json.data) ? json.data : [];
   }
   
-  // ✅ 단일 센서 조회
+  // 단일 센서 조회
   export async function getSensor(sensorId) {
     return SENSORS.find((s) => s.id === sensorId) ?? null;
   }
+
+  /* 특정 구역에 센서 생성 */
+  export async function createSensorInZone(zoneId, { model, sensor_type, is_alarm }) {
+    const body = {
+      area_id: Number(zoneId),
+      sensor_type,
+      model,
+      is_active: true,
+      is_alarm: Boolean(is_alarm),
+      pos_x: 10.5,
+      pos_y: 20.0,
+    };
+
+    const json = await api("/api/v1/sensors", {
+      method: "POST",
+      body,
+    });
+
+    if (!json?.is_sucsess) {
+      throw new Error(json?.message || "센서 생성 실패");
+    }
+
+    return json.data;
+  }
   
-  // ✅ 센서 수정
+  // 센서 수정
   export async function updateSensor(sensorId, patch) {
     SENSORS = SENSORS.map((s) => (s.id === sensorId ? { ...s, ...patch } : s));
     return getSensor(sensorId);
   }
   
-  // ✅ 센서 삭제
+  // 센서 삭제
   export async function deleteSensor(sensorId) {
     SENSORS = SENSORS.filter((s) => s.id !== sensorId);
     return true;

@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
 
   const area_id = req.query.area_id ? parseInt(req.query.area_id, 10) : null;
 
-  // 🔹 공통 WHERE 절 + 파라미터
+  // 공통 WHERE 절 + 파라미터
   let where = 'company_id=:company_id AND deleted_at IS NULL';
   const params = { company_id, size, offset };
 
@@ -35,8 +35,19 @@ router.get('/', async (req, res) => {
   );
 
   const [rows] = await pool.query(
-    `SELECT id, company_id, area_id, sensor_type, model, is_active, is_alarm,
-            pos_x, pos_y, created_at, updated_at
+    `SELECT id,
+            company_id,
+            area_id,
+            sensor_type,
+            model,
+            is_active,
+            is_alarm,
+            threshold_min,
+            threshold_max,
+            pos_x,
+            pos_y,
+            created_at,
+            updated_at
        FROM sensor
       WHERE ${where}
       ${orderSql}
@@ -48,7 +59,7 @@ router.get('/', async (req, res) => {
     is_sucsess: true,
     message: '센서 목록 조회 성공',
     data: rows,
-    meta: { page, size, total: cnt }
+    meta: { page, size, total: cnt },
   });
 });
 
@@ -61,6 +72,8 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
     model,
     is_active = true,
     is_alarm = true,
+    threshold_min = null,
+    threshold_max = null,
     pos_x = null,
     pos_y = null,
   } = req.body ?? {};
@@ -77,8 +90,29 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
   if (!area.length) return res.fail(403, 'FORBIDDEN', '해당 회사의 구역이 아님');
 
   const [r1] = await pool.query(
-    `INSERT INTO sensor (company_id, area_id, sensor_type, model, is_active, is_alarm, pos_x, pos_y)
-     VALUES (:company_id, :area_id, :sensor_type, :model, :is_active, :is_alarm, :pos_x, :pos_y)`,
+    `INSERT INTO sensor (
+        company_id,
+        area_id,
+        sensor_type,
+        model,
+        is_active,
+        is_alarm,
+        threshold_min,
+        threshold_max,
+        pos_x,
+        pos_y
+     ) VALUES (
+        :company_id,
+        :area_id,
+        :sensor_type,
+        :model,
+        :is_active,
+        :is_alarm,
+        :threshold_min,
+        :threshold_max,
+        :pos_x,
+        :pos_y
+     )`,
     {
       company_id,
       area_id,
@@ -86,6 +120,8 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
       model,
       is_active: is_active ? 1 : 0,
       is_alarm: is_alarm ? 1 : 0,
+      threshold_min,
+      threshold_max,
       pos_x,
       pos_y,
     }
@@ -99,7 +135,7 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
   return res.status(201).json({
     is_sucsess: true,
     message: '센서 생성 성공',
-    data: row[0]
+    data: row[0],
   });
 });
 
@@ -107,25 +143,54 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
 router.patch('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
   const company_id = req.company_id;
   const id = +req.params.sensorId;
-  const { model = null, is_active = null, is_alarm = null, pos_x = null, pos_y = null } = req.body ?? {};
+  const {
+    model = null,
+    is_active = null,
+    is_alarm = null,
+    threshold_min = null,
+    threshold_max = null,
+    pos_x = null,
+    pos_y = null,
+  } = req.body ?? {};
 
   const [r1] = await pool.query(
     `UPDATE sensor
-        SET model     = COALESCE(:model, model),
-            is_active = COALESCE(:is_active, is_active),
-            is_alarm  = COALESCE(:is_alarm, is_alarm),
-            pos_x     = COALESCE(:pos_x, pos_x),
-            pos_y     = COALESCE(:pos_y, pos_y),
-            updated_at = UTC_TIMESTAMP()
+        SET model         = COALESCE(:model, model),
+            is_active     = COALESCE(:is_active, is_active),
+            is_alarm      = COALESCE(:is_alarm, is_alarm),
+            threshold_min = COALESCE(:threshold_min, threshold_min),
+            threshold_max = COALESCE(:threshold_max, threshold_max),
+            pos_x         = COALESCE(:pos_x, pos_x),
+            pos_y         = COALESCE(:pos_y, pos_y),
+            updated_at    = UTC_TIMESTAMP()
       WHERE id=:id AND company_id=:company_id AND deleted_at IS NULL`,
-    { id, company_id, model, is_active, is_alarm, pos_x, pos_y }
+    {
+      id,
+      company_id,
+      model,
+      is_active,
+      is_alarm,
+      threshold_min,
+      threshold_max,
+      pos_x,
+      pos_y,
+    }
   );
 
   if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '센서 없음');
 
   const [row] = await pool.query(
-    `SELECT id, model, is_active, is_alarm, pos_x, pos_y, updated_at
-       FROM sensor WHERE id=:id`,
+    `SELECT id,
+            model,
+            is_active,
+            is_alarm,
+            threshold_min,
+            threshold_max,
+            pos_x,
+            pos_y,
+            updated_at
+       FROM sensor
+      WHERE id=:id`,
     { id }
   );
 
