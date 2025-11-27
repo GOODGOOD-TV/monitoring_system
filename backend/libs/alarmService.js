@@ -12,11 +12,35 @@ export async function processSensorReading(
   conn,
   { sensor_id, sensor_type, data_no = 1, data_value, data_sum = null, data_num = null }
 ) {
-  // 값 검증
+  // 1) 값 검증
   const v = Number(data_value);
   if (!Number.isFinite(v)) return { effect: 'SKIP_INVALID_VALUE' };
 
-  // RAW INSERT
+  // 2) 센서 정보 + company_id + threshold 먼저 조회
+  const [[sensor]] = await conn.query(
+    `
+    SELECT id,
+           company_id,
+           sensor_type,
+           is_alarm,
+           threshold_min,
+           threshold_max
+      FROM sensor
+     WHERE id = :sensor_id
+       AND deleted_at IS NULL
+    `,
+    { sensor_id }
+  );
+
+  if (!sensor) return { effect: 'SKIP_NO_SENSOR' };
+
+  // 요청에 들어온 sensor_type 우선, 없으면 DB 값 사용
+  const finalType = (sensor_type ?? sensor.sensor_type ?? '').toString().toLowerCase();
+  if (!['humidity', 'temperature'].includes(finalType)) {
+    return { effect: 'SKIP_INVALID_TYPE' };
+  }
+
+  // 3) RAW INSERT (✅ company_id 포함)
   await conn.query(
     `
     INSERT IGNORE INTO sensor_data
@@ -24,23 +48,20 @@ export async function processSensorReading(
     VALUES
       (:sensor_id, :sensor_type, ${nowUtcSql()}, :data_no, :data_value, :data_sum, :data_num)
     `,
-    { sensor_id, sensor_type, data_no, data_value: v, data_sum, data_num }
+    {
+      sensor_id,
+      sensor_type: finalType,
+      data_no,
+      data_value: v,
+      data_sum,
+      data_num,
+    }
   );
 
-  // timestamp
+  // 4) timestamp
   const [[{ ts: at_ts }]] = await conn.query(`SELECT ${nowUtcSql()} AS ts`);
 
-  // 센서 정보 + threshold
-  const [[sensor]] = await conn.query(
-    `
-    SELECT id, company_id, sensor_type, is_alarm, threshold_min, threshold_max
-      FROM sensor
-     WHERE id = :sensor_id
-       AND deleted_at IS NULL
-    `,
-    { sensor_id }
-  );
-  if (!sensor) return { effect: 'SKIP_NO_SENSOR' };
+  // 5) 알람 설정/임계값 사용
   if (!sensor.is_alarm) return { effect: 'SKIP_ALARM_OFF' };
 
   const lower = sensor.threshold_min;
@@ -88,55 +109,24 @@ export async function processSensorReading(
       }
     }
 
-    // 새 알람 생성
+    // 새 알람 생성 (여기서도 company_id 컬럼이 있다면 같이 넣어야 함)
     const threshold_ref = JSON.stringify({ lower, upper });
     const [ar] = await conn.query(
       `
-      INSERT INTO alarm (sensor_id, message, value, threshold_ref, created_at)
-      VALUES (:sid, :msg, :val, :ref, ${nowUtcSql()})
+      INSERT INTO alarm
+        (company_id, sensor_id, message, value, threshold_ref, created_at)
+      VALUES
+        (:cid, :sid, :msg, :val, :ref, ${nowUtcSql()})
       `,
       {
+        cid: sensor.company_id,
         sid: sensor_id,
         msg: direction,
         val: v,
-        ref: threshold_ref
+        ref: threshold_ref,
       }
     );
     const alarm_id = ar.insertId;
-
-    // 알림 규칙 조회 후 PENDING 추가
-    const [rules] = await conn.query(
-      `
-      SELECT channel, target_id
-        FROM notification_rules
-       WHERE company_id = :cid
-         AND (sensor_type IS NULL OR sensor_type = :stype)
-      `,
-      { cid: sensor.company_id, stype: sensor.sensor_type }
-    );
-
-    if (rules.length > 0) {
-      const text = `${sensor.sensor_type.toUpperCase()} ${direction} @ Sensor#${sensor_id} : ${v}`;
-      const payload = JSON.stringify({ text, sensor_id, value: v, direction, at: at_ts });
-
-      for (const r of rules) {
-        await conn.query(
-          `
-          INSERT INTO notifications
-            (alarm_id, channel, target_id, status, message, payload, created_at)
-          VALUES
-            (:alarm_id, :channel, :target_id, 'PENDING', :message, :payload, ${nowUtcSql()})
-          `,
-          {
-            alarm_id,
-            channel: r.channel,
-            target_id: r.target_id,
-            message: text,
-            payload
-          }
-        );
-      }
-    }
 
     return { effect: 'ALARM_CREATED', alarm_id, direction };
   }

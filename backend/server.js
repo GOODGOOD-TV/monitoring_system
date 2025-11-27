@@ -18,6 +18,7 @@ import alarmsRoute from './routes/alarms.js';
 import notificationsRoute from './routes/notifications.js';
 import sysLogsRoute from './routes/sys-logs.js';
 import sensorIngestRoute from './routes/sensor-ingest.js';
+import analyticsRoute from './routes/analytics.js';
 
 const app = express();
 
@@ -40,14 +41,25 @@ app.use('/api/v1/notifications', authGuard, notificationsRoute); //알람 발송
 app.use('/api/v1/sys-logs', authGuard, sysLogsRoute); //시스템 로그
 
 app.use('/api/v1/sensor-data', authGuard, sensorIngestRoute); //센서 -> 알람 생성
+app.use('/api/v1/analytics', authGuard, analyticsRoute); //분석 및 이상예측
 
 // 404
 app.use((req, res) => res.fail(404, 'NOT_FOUND', 'Not Found'));
 
 // 500
 app.use((err, _req, res, _next) => {
-  console.error(err);
-  res.fail(err.status ?? 500, err.code ?? 'INTERNAL_ERROR', err.message ?? 'Server Error', err.details ?? null);
+  console.error('🔥 GLOBAL ERROR HANDLER 🔥');
+  console.error('SQL      :', err.sql);
+  console.error('SQL MSG  :', err.sqlMessage);
+  console.error('STACK    :', err.stack);
+  console.error('ERROR OBJ:', err);
+
+  res.fail(
+    err.status ?? 500,
+    err.code ?? 'INTERNAL_ERROR',
+    err.message ?? 'Server Error',
+    err.details ?? null
+  );
 });
 
 const PORT = process.env.PORT ?? 3000;

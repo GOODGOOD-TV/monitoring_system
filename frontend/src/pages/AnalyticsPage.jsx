@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import { api, getAccessToken } from "../lib/api.js";
 
@@ -19,6 +19,9 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [rangeLabel, setRangeLabel] = useState("");
+
+  const [forecastRows, setForecastRows] = useState([]);
+
 
   async function fetchSensors() {
     setErr("");
@@ -45,32 +48,60 @@ export default function AnalyticsPage() {
     try {
       if (!getAccessToken()) { window.location.assign("/login"); return; }
 
-      // ✅ 기간(range)으로 from/to, bucket 자동 계산
       const now = new Date();
       const { from, to, fromObj, toObj } = buildRange(range, now);
-      const bucket = chooseBucket(fromObj, toObj);
 
-      const q = new URLSearchParams({
+      // 1) 실제 시계열 + 이상치
+      const q1 = new URLSearchParams({
         sensor_id: String(sensorId),
         from: from.toISOString(),
         to: to.toISOString(),
-        bucket,
       });
 
-      const json = await api(`/api/v1/sensor-data?${q.toString()}`);
-      if (!json?.is_sucsess) throw new Error(json?.message || "데이터 조회 실패");
+      // 2) 단기 예측(6분, 1분 간격)용 쿼리
+      const q2 = new URLSearchParams({
+        sensor_id: String(sensorId),
+        horizon_minutes: "60",
+        step_minutes: "1",
+      });
 
-      const data = (json.data || []).map((d) => ({
-        label: safeTime(d.upload_at),
-        temp: toNum(d.data_value),
-        hum: undefined, // 나중에 습도 센서 생기면 분기해서 채우면 됨
+      const [jsonSeries, jsonForecast] = await Promise.all([
+        api(`/api/v1/analytics/sensor-series?${q1.toString()}`),
+        api(`/api/v1/analytics/sensor-forecast?${q2.toString()}`),
+      ]);
+
+      if (!jsonSeries?.is_sucsess) throw new Error(jsonSeries?.message || "데이터 조회 실패");
+      if (!jsonForecast?.is_sucsess) throw new Error(jsonForecast?.message || "예측 실패");
+
+      const data = (jsonSeries.data || []).map((d) => {
+        const t = d.upload_at || d.time;
+        const v = toNum(d.value);
+        return {
+          label: safeTime(t),
+          time: t,
+          value: v,
+          temp: v,                // 온도 센서 기준
+          hum: undefined,
+          is_anomaly: !!d.is_anomaly,
+          anomaly_score: d.anomaly_score ?? 0,
+        };
+      });
+
+      const fc = (jsonForecast.data || []).map((d) => ({
+        label: safeTime(d.predicted_at),
+        time: d.predicted_at,
+        value: toNum(d.value),
+        lower: toNum(d.lower),
+        upper: toNum(d.upper),
       }));
 
       setRows(data);
+      setForecastRows(fc);
       setRangeLabel(formatRange(fromObj, toObj, range));
     } catch (e) {
       setErr(e.message || String(e));
       setRows([]);
+      setForecastRows([]);
       setRangeLabel("");
     } finally {
       setLoading(false);
@@ -81,7 +112,8 @@ export default function AnalyticsPage() {
 
   const sensor = sensors.find(s => String(s.id) === String(sensorId));
   const type = sensor?.sensor_type ?? "temperature"; // "temperature" or "humidity"
-
+  const tmin = (sensor?.threshold_min != null) ? Number(sensor.threshold_min) - 3: 'auto';
+  const tmax = (sensor?.threshold_max != null) ? Number(sensor.threshold_max) + 3 : 'auto';
   return (
     <div style={{ padding: 16 }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 12px" }}>데이터분석</h1>
@@ -92,7 +124,7 @@ export default function AnalyticsPage() {
           <select value={sensorId} onChange={(e)=>setSensorId(e.target.value)} style={sel}>
             {sensors.map(s => (
               <option key={s.id} value={s.id}>
-                {s.model ? `${s.model} (#${s.id}/${typeSymbol(s.sensor_type)})` : `SEN${s.id} (#${s.id}/${typeSymbol(s.sensor_type)})`}
+                {s.model ? `${s.model} (#${s.id} / ${typeSymbol(s.sensor_type)})` : `SEN${s.id} (#${s.id}/${typeSymbol(s.sensor_type)})`}
               </option>
             ))}
           </select>
@@ -119,17 +151,64 @@ export default function AnalyticsPage() {
         </div>
         <div style={{ width: "100%", height: 420 }}>
           <ResponsiveContainer>
-            <LineChart data={rows} margin={{ top: 12, right: 16, bottom: 12, left: 0 }}>
+            <LineChart data={rows} margin={{ top: 12, right: 16, bottom: 12, left: 24 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" minTickGap={20} />
-              <YAxis />
+              <YAxis domain={[tmin, tmax]} />
               <Tooltip />
+              {/* 임계값 하한선 */}
+              {sensor?.threshold_min != null && (
+                <ReferenceLine
+                  y={sensor.threshold_min}
+                  stroke="#22c55e"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: `하한 ${parseFloat(sensor.threshold_min).toFixed(1)}`,
+                    position: "left",
+                    fontSize: 12,
+                    fill: "#16a34a",
+                    dx: -20,
+                  }}
+                />
+              )}
+              {/* 임계값 상한선 */}
+              {sensor?.threshold_max != null && (
+                <ReferenceLine
+                  y={sensor.threshold_max}
+                  stroke="#ef4444"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: `상한 ${parseFloat(sensor.threshold_max).toFixed(1)}`,
+                    position: "left",
+                    fontSize: 12,
+                    fill: "#b91c1c",
+                    dx: -20,
+                  }}
+                />
+              )}
               {(type === "temperature") && (
                 <Line type="monotone" dataKey="temp" dot={false} name="온도(°C)" />
               )}
               {(type === "humidity") && (
                 <Line type="monotone" dataKey="hum" dot={false} name="습도(%)" />
               )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      {/* 예측 전용 차트 하나 더 아래에 추가 */}
+      <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:8, padding: 12, marginTop: 12 }}>
+        <div style={{ color:"#475569", fontSize:14, marginBottom: 8 }}>
+          단기 예측 (다음 1시간)
+        </div>
+        <div style={{ width: "100%", height: 260 }}>
+          <ResponsiveContainer>
+            <LineChart data={forecastRows} margin={{ top: 12, right: 16, bottom: 12, left: 24 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" minTickGap={20} />
+              <YAxis domain={[tmin, tmax]} />
+              <Tooltip />
+              <Line type="monotone" dataKey="value" dot name="예측값" />
             </LineChart>
           </ResponsiveContainer>
         </div>
