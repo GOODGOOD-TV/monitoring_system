@@ -14,10 +14,23 @@ router.get('/me', async (req, res) => {
   if (!id) return res.fail(401, 'UNAUTHORIZED', '토큰 없음');
 
   const [rows] = await pool.query(
-    `SELECT id, company_id, employee_id, name, phone, email, role, is_active, created_at, updated_at
-       FROM users
-      WHERE id=:id
-        AND deleted_at IS NULL
+    `
+    SELECT 
+      u.id,
+      u.company_id,
+      u.employee_id,
+      u.name,
+      u.phone,
+      u.email,
+      u.role,
+      u.is_active,
+      u.created_at,
+      u.updated_at,
+      c.name AS company_name
+    FROM users u
+    JOIN company c ON c.id = u.company_id
+    WHERE u.id = :id
+      AND u.deleted_at IS NULL
     `,
     { id }
   );
@@ -33,37 +46,57 @@ router.get('/me', async (req, res) => {
 
 /**
  * PATCH /api/v1/users/me
- * body: { name?, phone?, role?, is_active? }
+ * body: { name?, phone?, email?, is_active? }
  * 같은 회사 범위 내 수정만 허용
  */
 router.patch('/me', async (req, res) => {
   const company_id = req.company_id;
   const id = req.user?.id;
-  const { name = null, phone = null, is_active = null } = req.body ?? {};
+
+  const {
+    name = null,
+    phone = null,
+    email = null,
+    is_active = null
+  } = req.body ?? {};
+
   if (!id) return res.fail(401, 'UNAUTHORIZED', '토큰 없음');
 
-  if ([name, phone, is_active].every(v => v === null)) {
+  // 아무것도 안 들어오면 에러
+  if ([name, phone, email, is_active].every(v => v === null)) {
     return res.fail(400, 'EMPTY_UPDATE', '변경할 필드가 없습니다');
   }
 
   const [r1] = await pool.query(
     `
     UPDATE users
-      SET name=COALESCE(:name, name),
-          phone=COALESCE(:phone, phone),
-          is_active=COALESCE(:is_active, is_active),
-          updated_at=UTC_TIMESTAMP()
-      WHERE id=:id
-        AND company_id=:company_id
+      SET name      = COALESCE(:name, name),
+          phone     = COALESCE(:phone, phone),
+          email     = COALESCE(:email, email),
+          is_active = COALESCE(:is_active, is_active),
+          updated_at = UTC_TIMESTAMP()
+      WHERE id = :id
+        AND company_id = :company_id
         AND deleted_at IS NULL
     `,
-    { id, company_id, name, phone, is_active }
+    { id, company_id, name, phone, email, is_active }
   );
 
   if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '사용자 없음');
 
   const [row] = await pool.query(
-    `SELECT id, name, phone, role, is_active, updated_at FROM users WHERE id=:id`,
+    `
+    SELECT 
+      id,
+      name,
+      phone,
+      email,
+      role,
+      is_active,
+      updated_at
+    FROM users
+    WHERE id = :id
+    `,
     { id }
   );
 
@@ -127,13 +160,6 @@ router.patch('/me/password', mustRole('user', 'manager', 'admin'), async (req, r
       { id, company_id, new_hash }
     );
     if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '사용자 없음');
-
-    // (선택) 기존 세션/리프레시 토큰 무효화
-    // 테이블명이 다르면 맞춰 변경
-    // await pool.query(
-    //   `DELETE FROM refresh_tokens WHERE user_id=:id`,
-    //   { id }
-    // );
 
     return res.status(200).json({
       is_sucsess: true,

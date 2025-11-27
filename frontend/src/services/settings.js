@@ -1,20 +1,37 @@
 // src/services/settings.js
-// 실제 API 붙이기 전까지 사용할 임시 저장소 (fetch로 쉽게 교체 가능)
+import { api, getAccessToken } from "../lib/api.js";
 
-let SETTINGS = {
-    thresholds: { tempLow: 18, tempHigh: 28, humLow: 35, humHigh: 65 },
-    alert: { delayMin: 5, sms: true, email: false, slack: false },
-    retentionDays: 90, // 데이터 보존기간(일)
+export async function getSettings() {
+  const res = await api("/api/v1/users/me");
+  const u = res.data ?? res;
+
+  return {
+    profile: {
+      id: u.id,
+      company_id: u.company_id,
+      employee_id: u.employee_id,
+      name: u.name,
+      company_name: u.company_name ?? "",
+      role: u.role,
+      is_active: u.is_active,
+      created_at: u.created_at,
+      updated_at: u.updated_at,
+    },
+    contact: {
+      phone: u.phone ?? "",
+      email: u.email ?? "",
+    },
   };
-  
-  export async function getSettings() {
-    // 서버가 있다면: return (await fetch('/api/settings')).json();
-    return structuredClone(SETTINGS);
-  }
-  
-  export async function saveSettings(next) {
-    // 서버가 있다면: await fetch('/api/settings', { method:'POST', body: JSON.stringify(next) });
-    SETTINGS = structuredClone(next);
-    return true;
-  }
-  
+}
+
+export async function saveSettings(settings) {
+  const body = {
+    phone: settings.contact?.phone ?? null,
+    email: settings.contact?.email ?? null,
+  };
+
+  return api("/api/v1/users/me", {
+    method: "PATCH",
+    body,
+  });
+}
