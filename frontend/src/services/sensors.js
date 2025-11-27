@@ -28,13 +28,15 @@ import { api } from "../lib/api.js";
   }
 
   /* 특정 구역에 센서 생성 */
-  export async function createSensorInZone(zoneId, { model, sensor_type, is_alarm }) {
+  export async function createSensorInZone(zoneId, { model, sensor_type, is_alarm, threshold_min, threshold_max }) {
     const body = {
       area_id: Number(zoneId),
       sensor_type,
       model,
       is_active: true,
       is_alarm: Boolean(is_alarm),
+      threshold_min: threshold_min,  
+      threshold_max: threshold_max, 
       pos_x: 10.5,
       pos_y: 20.0,
     };
