@@ -65,3 +65,21 @@ export async function getZone(zoneId) {
     createdAt: a.created_at,
   };
 }
+
+/* 구역 생성 */
+export async function createZone({ name }) {
+  const body = { area_name: name, is_active: true };
+  const json = await api("/api/v1/areas", {
+    method: "POST",
+    body,
+  });
+  if (!json?.is_sucsess) throw new Error(json?.message || "구역 생성 실패");
+
+  const a = json.data;
+  return {
+    id: a.id,
+    name: a.area_name,
+    isActive: a.is_active,
+    createdAt: a.created_at,
+  };
+}

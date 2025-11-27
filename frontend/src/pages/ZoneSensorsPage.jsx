@@ -1,8 +1,8 @@
+// src/pages/ZoneSensorsPage.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getZone } from "../services/zones";
-import { getSensorsByZone } from "../services/sensors";
-import { api } from "../lib/api.js";
+import { getSensorsByZone, createSensorInZone } from "../services/sensors";
 
 export default function ZoneSensorsPage() {
   const { zoneId } = useParams();
@@ -10,32 +10,65 @@ export default function ZoneSensorsPage() {
   const [sensors, setSensors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [newModel, setNewModel] = useState("");
+  const [newType, setNewType] = useState("");
+  const [newAlarm, setNewAlarm] = useState("on"); // 🔔 알람 상태
+  const [adding, setAdding] = useState(false);
+
   const navigate = useNavigate();
 
-  useEffect(() => {
-    (async () => {
-      if (!zoneId) return;
-      setLoading(true);
-      setErr("");
+  async function load() {
+    if (!zoneId) return;
+    setLoading(true);
+    setErr("");
+    try {
+      const [z, sList] = await Promise.all([
+        getZone(zoneId),
+        getSensorsByZone(zoneId),
+      ]);
+      setZone(z);
+      setSensors(sList);
+    } catch (e) {
+      console.error("[ZoneSensorsPage] load error:", e);
+      setErr(e.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
 
-      try {
-        const [z, sList] = await Promise.all([
-          getZone(zoneId),
-          getSensorsByZone(zoneId),
-        ]);
-        setZone(z);
-        setSensors(sList);
-      } catch (e) {
-        console.error("[ZoneSensorsPage] error:", e);
-        setErr(e.message || String(e));
-      } finally {
-        setLoading(false);
-      }
-    })();
+  useEffect(() => {
+    load();
   }, [zoneId]);
+
+  async function handleAddSensor(e) {
+    e.preventDefault();
+    if (!newModel.trim() || !newType.trim()) return;
+
+    setAdding(true);
+    try {
+      await createSensorInZone(zoneId, {
+        model: newModel.trim(),
+        sensor_type: newType,             // "temperature" | "humidity"
+        is_alarm: newAlarm === "on",      // 🔔 true / false
+      });
+      setNewModel("");
+      setNewType("");
+      setNewAlarm("on");
+      setShowAdd(false);
+      await load();
+    } catch (e) {
+      console.error("[ZoneSensorsPage] create error:", e);
+      alert(e.message || "센서 생성 실패");
+    } finally {
+      setAdding(false);
+    }
+  }
 
   return (
     <div style={{ padding: 16 }}>
+      {/* 헤더 */}
       <div
         style={{
           display: "flex",
@@ -52,6 +85,7 @@ export default function ZoneSensorsPage() {
         </h1>
       </div>
 
+      {/* 본문 박스 */}
       <div
         style={{
           background: "#d1d5db",
@@ -65,11 +99,79 @@ export default function ZoneSensorsPage() {
           <div style={{ color: "#b91c1c", marginBottom: 16 }}>{err}</div>
         )}
         {loading && (
-          <div style={{ color: "#4b5563", marginBottom: 16 }}>
-            불러오는 중…
-          </div>
+          <div style={{ color: "#4b5563", marginBottom: 16 }}>불러오는 중…</div>
         )}
 
+        {/* 센서 추가 폼 (토글) */}
+        {showAdd && (
+          <form
+            onSubmit={handleAddSensor}
+            style={{
+              marginBottom: 24,
+              padding: 12,
+              borderRadius: 8,
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb",
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {/* 모델명 */}
+            <input
+              value={newModel}
+              onChange={(e) => setNewModel(e.target.value)}
+              placeholder="모델명 (예: DHT22)"
+              style={input}
+            />
+
+            {/* 센서 타입 */}
+            <select
+              value={newType}
+              onChange={(e) => setNewType(e.target.value)}
+              style={selectBox}
+            >
+              <option value="">센서 타입 선택</option>
+              <option value="temperature">온도 (temperature)</option>
+              <option value="humidity">습도 (humidity)</option>
+            </select>
+
+            {/* 🔔 알람 활성화 여부 */}
+            <select
+              value={newAlarm}
+              onChange={(e) => setNewAlarm(e.target.value)}
+              style={selectBox}
+            >
+              <option value="on">알람 ON</option>
+              <option value="off">알람 OFF</option>
+            </select>
+
+            <button
+              type="submit"
+              disabled={adding || !newModel.trim() || !newType.trim()}
+              style={primaryBtn}
+            >
+              {adding ? "추가 중…" : "추가"}
+            </button>
+
+            <button
+              type="button"
+              disabled={adding}
+              onClick={() => {
+                setShowAdd(false);
+                setNewModel("");
+                setNewType("");
+                setNewAlarm("on");
+              }}
+              style={cancelBtn}
+            >
+              취소
+            </button>
+          </form>
+        )}
+
+        {/* 센서 리스트 그리드 */}
         <div
           style={{
             display: "grid",
@@ -78,7 +180,7 @@ export default function ZoneSensorsPage() {
             justifyContent: "center",
           }}
         >
-          {!loading && !err && sensors.length === 0 && (
+          {!loading && !err && sensors.length === 0 && !showAdd && (
             <div style={{ color: "#4b5563" }}>이 구역에 센서가 없습니다.</div>
           )}
 
@@ -88,7 +190,6 @@ export default function ZoneSensorsPage() {
               onClick={() => navigate(`/zones/${zoneId}/sensors/${s.id}`)}
               style={tile}
             >
-              {/* 여기는 나중에 센서 데이터 붙이면 temp/hum로 교체 */}
               <div style={{ fontSize: 14, fontWeight: 700 }}>
                 {s.model || "모델 미지정"}
               </div>
@@ -113,17 +214,23 @@ export default function ZoneSensorsPage() {
             </button>
           ))}
 
-          <button
-            title="센서 추가"
-            style={{ ...tile, border: "2px dashed #111", fontSize: 28 }}
-          >
-            +
-          </button>
+          {/* 센서 추가 버튼 */}
+          {!showAdd && (
+            <button
+              title="센서 추가"
+              style={{ ...tile, border: "2px dashed #111", fontSize: 28 }}
+              onClick={() => setShowAdd(true)}
+            >
+              +
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+/* 스타일 & 헬퍼들 */
 
 const tile = {
   width: 160,
@@ -143,6 +250,43 @@ const backBtn = {
   background: "#fff",
   borderRadius: 6,
   padding: "4px 8px",
+  cursor: "pointer",
+};
+
+const input = {
+  width: 180,
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "1px solid #d4d4d8",
+  fontSize: 13,
+};
+
+const selectBox = {
+  width: 160,
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "1px solid #d4d4d8",
+  fontSize: 13,
+  background: "#fff",
+};
+
+const primaryBtn = {
+  padding: "8px 12px",
+  borderRadius: 6,
+  border: "none",
+  background: "#111827",
+  color: "#fff",
+  fontSize: 13,
+  cursor: "pointer",
+};
+
+const cancelBtn = {
+  padding: "8px 12px",
+  borderRadius: 6,
+  border: "1px solid #e5e7eb",
+  background: "#fff",
+  color: "#111827",
+  fontSize: 13,
   cursor: "pointer",
 };
 
