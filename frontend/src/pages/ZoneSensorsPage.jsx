@@ -14,7 +14,9 @@ export default function ZoneSensorsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newModel, setNewModel] = useState("");
   const [newType, setNewType] = useState("");
-  const [newAlarm, setNewAlarm] = useState("on"); // 🔔 알람 상태
+  const [newAlarm, setNewAlarm] = useState("on");
+  const [newMin, setNewMin] = useState("");     // 🔥 threshold_min
+  const [newMax, setNewMax] = useState("");     // 🔥 threshold_max
   const [adding, setAdding] = useState(false);
 
   const navigate = useNavigate();
@@ -31,7 +33,6 @@ export default function ZoneSensorsPage() {
       setZone(z);
       setSensors(sList);
     } catch (e) {
-      console.error("[ZoneSensorsPage] load error:", e);
       setErr(e.message || String(e));
     } finally {
       setLoading(false);
@@ -44,22 +45,32 @@ export default function ZoneSensorsPage() {
 
   async function handleAddSensor(e) {
     e.preventDefault();
+
     if (!newModel.trim() || !newType.trim()) return;
+
+    // 숫자 파싱
+    const minVal = newMin === "" ? null : Number(newMin);
+    const maxVal = newMax === "" ? null : Number(newMax);
 
     setAdding(true);
     try {
       await createSensorInZone(zoneId, {
         model: newModel.trim(),
-        sensor_type: newType,             // "temperature" | "humidity"
-        is_alarm: newAlarm === "on",      // 🔔 true / false
+        sensor_type: newType,
+        is_alarm: newAlarm === "on",
+        threshold_min: minVal,
+        threshold_max: maxVal,
       });
+
       setNewModel("");
       setNewType("");
       setNewAlarm("on");
+      setNewMin("");
+      setNewMax("");
       setShowAdd(false);
+
       await load();
     } catch (e) {
-      console.error("[ZoneSensorsPage] create error:", e);
       alert(e.message || "센서 생성 실패");
     } finally {
       setAdding(false);
@@ -69,23 +80,14 @@ export default function ZoneSensorsPage() {
   return (
     <div style={{ padding: 16 }}>
       {/* 헤더 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 8,
-        }}
-      >
-        <button onClick={() => navigate("/zones")} style={backBtn}>
-          ←
-        </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <button onClick={() => navigate("/zones")} style={backBtn}>←</button>
         <h1 style={{ fontSize: 20, fontWeight: 700 }}>
           센서관리 · {zone?.name ?? `구역 ${zoneId}`}
         </h1>
       </div>
 
-      {/* 본문 박스 */}
+      {/* 본문 */}
       <div
         style={{
           background: "#d1d5db",
@@ -95,30 +97,25 @@ export default function ZoneSensorsPage() {
           minHeight: 420,
         }}
       >
-        {err && (
-          <div style={{ color: "#b91c1c", marginBottom: 16 }}>{err}</div>
-        )}
-        {loading && (
-          <div style={{ color: "#4b5563", marginBottom: 16 }}>불러오는 중…</div>
-        )}
+        {err && <div style={{ color: "#b91c1c", marginBottom: 16 }}>{err}</div>}
 
-        {/* 센서 추가 폼 (토글) */}
+        {/* 추가 폼 */}
         {showAdd && (
           <form
             onSubmit={handleAddSensor}
             style={{
               marginBottom: 24,
-              padding: 12,
+              padding: 16,
               borderRadius: 8,
               background: "#f9fafb",
               border: "1px solid #e5e7eb",
               display: "flex",
               gap: 8,
+              flexWrap: "wrap",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            {/* 모델명 */}
             <input
               value={newModel}
               onChange={(e) => setNewModel(e.target.value)}
@@ -126,18 +123,16 @@ export default function ZoneSensorsPage() {
               style={input}
             />
 
-            {/* 센서 타입 */}
             <select
               value={newType}
               onChange={(e) => setNewType(e.target.value)}
               style={selectBox}
             >
-              <option value="">센서 타입 선택</option>
+              <option value="">센서 타입</option>
               <option value="temperature">온도 (temperature)</option>
               <option value="humidity">습도 (humidity)</option>
             </select>
 
-            {/* 🔔 알람 활성화 여부 */}
             <select
               value={newAlarm}
               onChange={(e) => setNewAlarm(e.target.value)}
@@ -146,6 +141,26 @@ export default function ZoneSensorsPage() {
               <option value="on">알람 ON</option>
               <option value="off">알람 OFF</option>
             </select>
+
+            {/* 🔥 threshold_min */}
+            <input
+              type="number"
+              value={newMin}
+              onChange={(e) => setNewMin(e.target.value)}
+              placeholder="하한값 (min)"
+              step="0.1"
+              style={input}
+            />
+
+            {/* 🔥 threshold_max */}
+            <input
+              type="number"
+              value={newMax}
+              onChange={(e) => setNewMax(e.target.value)}
+              placeholder="상한값 (max)"
+              step="0.1"
+              style={input}
+            />
 
             <button
               type="submit"
@@ -163,6 +178,8 @@ export default function ZoneSensorsPage() {
                 setNewModel("");
                 setNewType("");
                 setNewAlarm("on");
+                setNewMin("");
+                setNewMax("");
               }}
               style={cancelBtn}
             >
@@ -171,7 +188,7 @@ export default function ZoneSensorsPage() {
           </form>
         )}
 
-        {/* 센서 리스트 그리드 */}
+        {/* 센서 목록 */}
         <div
           style={{
             display: "grid",
@@ -180,44 +197,22 @@ export default function ZoneSensorsPage() {
             justifyContent: "center",
           }}
         >
-          {!loading && !err && sensors.length === 0 && !showAdd && (
-            <div style={{ color: "#4b5563" }}>이 구역에 센서가 없습니다.</div>
-          )}
-
           {sensors.map((s) => (
             <button
               key={s.id}
               onClick={() => navigate(`/zones/${zoneId}/sensors/${s.id}`)}
               style={tile}
             >
-              <div style={{ fontSize: 14, fontWeight: 700 }}>
-                {s.model || "모델 미지정"}
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#6b7280",
-                  marginTop: 4,
-                  marginBottom: 8,
-                }}
-              >
-                타입: {s.sensor_type || "-"}
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <Badge on={num(s.is_active) === 1}>
-                  {num(s.is_active) === 1 ? "ACTIVE" : "INACTIVE"}
-                </Badge>
-                <Badge on={num(s.is_alarm) === 1}>
-                  {num(s.is_alarm) === 1 ? "ALARM" : "NORMAL"}
-                </Badge>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{s.model}</div>
+              <div style={{ fontSize: 12, color: "#6b7280" }}>타입: {s.sensor_type}</div>
+              <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+                {s.threshold_min} ~ {s.threshold_max}
               </div>
             </button>
           ))}
 
-          {/* 센서 추가 버튼 */}
           {!showAdd && (
             <button
-              title="센서 추가"
               style={{ ...tile, border: "2px dashed #111", fontSize: 28 }}
               onClick={() => setShowAdd(true)}
             >
@@ -230,8 +225,7 @@ export default function ZoneSensorsPage() {
   );
 }
 
-/* 스타일 & 헬퍼들 */
-
+/* Styles */
 const tile = {
   width: 160,
   height: 144,
@@ -254,7 +248,7 @@ const backBtn = {
 };
 
 const input = {
-  width: 180,
+  width: 160,
   padding: "8px 10px",
   borderRadius: 6,
   border: "1px solid #d4d4d8",
@@ -266,8 +260,8 @@ const selectBox = {
   padding: "8px 10px",
   borderRadius: 6,
   border: "1px solid #d4d4d8",
-  fontSize: 13,
   background: "#fff",
+  fontSize: 13,
 };
 
 const primaryBtn = {
@@ -289,29 +283,3 @@ const cancelBtn = {
   fontSize: 13,
   cursor: "pointer",
 };
-
-function Badge({ on, children }) {
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        minWidth: 60,
-        textAlign: "center",
-        padding: "3px 8px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 700,
-        color: on ? "#065f46" : "#7f1d1d",
-        background: on ? "#d1fae5" : "#fee2e2",
-        border: `1px solid ${on ? "#10b981" : "#f87171"}`,
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function num(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
