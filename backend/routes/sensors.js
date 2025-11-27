@@ -7,7 +7,6 @@ const router = Router();
 
 /** GET /api/v1/sensors */
 router.get('/', async (req, res) => {
-  console.log('sensors')
   const company_id = req.company_id;
   const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
   const size = Math.min(200, Math.max(1, parseInt(req.query.size ?? '20', 10)));
