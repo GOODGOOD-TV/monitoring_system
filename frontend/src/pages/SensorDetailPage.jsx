@@ -1,17 +1,14 @@
 // src/pages/sensordetail.js
-
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { api } from "../lib/api";
 
-// 센서 타입에 따른 단위
 function getUnit(sensorType) {
   if (sensorType === "temperature") return "℃";
   if (sensorType === "humidity") return "%";
   return "";
 }
 
-// 날짜 포맷
 function formatDateTime(value) {
   if (!value) return "-";
   const d = new Date(value);
@@ -19,12 +16,11 @@ function formatDateTime(value) {
   return d.toLocaleString();
 }
 
-export default function SensorDetail() {
+export default function SensorDetailPage() {
   const navigate = useNavigate();
-  const { areaId, sensorId } = useParams();
+  const { areaId, sensorId } = useParams(); // /zones/:areaId/sensors/:sensorId
   const location = useLocation();
 
-  // 구역 이름은 이전 페이지에서 navigate 할 때 state로 넘겨주는 걸 가정
   const areaName =
     (location.state && location.state.areaName) ||
     (areaId ? `Area ${areaId}` : "구역");
@@ -44,25 +40,21 @@ export default function SensorDetail() {
       setError("");
 
       try {
-        // 1) 센서 메타 정보
         const sensorRes = await api(`/api/v1/sensors/${sensorId}`);
-        const sensorPayload =
-          sensorRes?.data?.sensor || sensorRes?.data || sensorRes;
+        const s = sensorRes?.data || sensorRes || {};
 
-        // 2) 최근 센서 데이터 (예: 50개)
         const dataRes = await api(
           `/api/v1/sensors/${sensorId}/data?limit=50`
         );
-        let rows = dataRes?.data?.items || dataRes?.data || dataRes;
+        let rows = dataRes?.data || dataRes || [];
         if (!Array.isArray(rows)) rows = [];
 
-        // 최신순 정렬
         rows.sort(
           (a, b) => new Date(b.upload_at) - new Date(a.upload_at)
         );
 
         if (!cancelled) {
-          setSensor(sensorPayload || null);
+          setSensor(s);
           setDataList(rows);
         }
       } catch (e) {
@@ -84,14 +76,12 @@ export default function SensorDetail() {
   const latest = dataList[0] || null;
   const unit = getUnit(sensor?.sensor_type);
 
-  // 🔹 센서 수정 버튼: /zones/:areaId/sensors/:sensorId/edit 로 이동
   const handleEditClick = () => {
     navigate(`/zones/${areaId}/sensors/${sensorId}/edit`, {
       state: { areaName },
     });
   };
 
-  // 🔹 센서 삭제(비활성화): is_active = 0 으로 PATCH
   const handleDeleteClick = async () => {
     if (!window.confirm("이 센서를 비활성화하시겠습니까?")) return;
 
@@ -100,11 +90,7 @@ export default function SensorDetail() {
         method: "PATCH",
         body: { is_active: 0 },
       });
-
-      // 화면에서 즉시 반영
-      setSensor((prev) =>
-        prev ? { ...prev, is_active: 0 } : prev
-      );
+      setSensor((prev) => (prev ? { ...prev, is_active: 0 } : prev));
       alert("센서를 비활성화했습니다.");
     } catch (e) {
       alert(e?.message || "센서를 비활성화하지 못했습니다.");
@@ -112,43 +98,43 @@ export default function SensorDetail() {
   };
 
   return (
-    <div className="page sensor-detail-page" style={{ padding: "24px" }}>
-      {/* 뒤로가기 */}
+    <div className="page sensor-detail-page" style={{ padding: 24 }}>
       <button
         type="button"
         onClick={() => navigate(-1)}
         style={{
-          border: "none",
-          background: "transparent",
+          border: "1px solid #e5e7eb",
+          background: "#fff",
+          borderRadius: 6,
+          padding: "4px 8px",
           cursor: "pointer",
-          marginBottom: "8px",
-          fontSize: "16px",
+          marginBottom: 8,
+          fontSize: 14,
         }}
       >
         ← 센서관리로 돌아가기
       </button>
 
-      {/* 상단 타이틀 + 오른쪽 센서명 + 버튼들 */}
       <header
         style={{
-          marginBottom: "24px",
+          marginBottom: 24,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-end",
-          gap: "16px",
+          gap: 16,
         }}
       >
         <div>
           <div
             style={{
-              fontSize: "14px",
+              fontSize: 14,
               color: "#666",
-              marginBottom: "4px",
+              marginBottom: 4,
             }}
           >
             센서관리 · {areaName} · 센서 상세
           </div>
-          <h1 style={{ fontSize: "28px", margin: 0 }}>센서 상세</h1>
+          <h1 style={{ fontSize: 28, margin: 0 }}>센서 상세</h1>
         </div>
 
         <div
@@ -156,7 +142,7 @@ export default function SensorDetail() {
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-end",
-            gap: "8px",
+            gap: 8,
           }}
         >
           {sensor && (
@@ -164,11 +150,11 @@ export default function SensorDetail() {
               style={{
                 padding: "16px 32px",
                 backgroundColor: "#fff",
-                borderRadius: "12px",
+                borderRadius: 12,
                 boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-                fontSize: "20px",
+                fontSize: 20,
                 fontWeight: 600,
-                minWidth: "160px",
+                minWidth: 160,
                 textAlign: "center",
               }}
             >
@@ -176,18 +162,17 @@ export default function SensorDetail() {
             </div>
           )}
 
-          {/* 수정 / 삭제 버튼 */}
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
               onClick={handleEditClick}
               style={{
                 padding: "6px 14px",
-                borderRadius: "999px",
+                borderRadius: 999,
                 border: "1px solid #228be6",
                 backgroundColor: "#228be6",
                 color: "#fff",
-                fontSize: "13px",
+                fontSize: 13,
                 cursor: "pointer",
               }}
             >
@@ -198,11 +183,11 @@ export default function SensorDetail() {
               onClick={handleDeleteClick}
               style={{
                 padding: "6px 14px",
-                borderRadius: "999px",
+                borderRadius: 999,
                 border: "1px solid #e03131",
                 backgroundColor: "#fff",
                 color: "#e03131",
-                fontSize: "13px",
+                fontSize: 13,
                 cursor: "pointer",
               }}
             >
@@ -212,35 +197,32 @@ export default function SensorDetail() {
         </div>
       </header>
 
-      {/* 로딩/에러 처리 */}
       {loading && <div>로딩 중...</div>}
       {!loading && error && (
-        <div style={{ color: "red", marginBottom: "16px" }}>{error}</div>
+        <div style={{ color: "red", marginBottom: 16 }}>{error}</div>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && sensor && (
         <>
-          {/* 현재 상태 + 센서 정보 */}
           <section
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1.2fr)",
-              gap: "24px",
-              marginBottom: "32px",
+              gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1.4fr)",
+              gap: 24,
+              marginBottom: 32,
             }}
           >
-            {/* 현재 상태 */}
             <div
               style={{
                 backgroundColor: "#e7ecf2",
-                borderRadius: "16px",
-                padding: "24px",
+                borderRadius: 16,
+                padding: 24,
               }}
             >
               <h2
                 style={{
-                  fontSize: "20px",
-                  marginBottom: "16px",
+                  fontSize: 20,
+                  marginBottom: 16,
                 }}
               >
                 현재 상태
@@ -249,24 +231,24 @@ export default function SensorDetail() {
               <div
                 style={{
                   backgroundColor: "#fff",
-                  borderRadius: "16px",
-                  padding: "24px",
+                  borderRadius: 16,
+                  padding: 24,
                   boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
                 }}
               >
                 <div
                   style={{
-                    fontSize: "16px",
-                    marginBottom: "8px",
+                    fontSize: 16,
+                    marginBottom: 8,
                   }}
                 >
                   측정 값
                 </div>
                 <div
                   style={{
-                    fontSize: "40px",
+                    fontSize: 40,
                     fontWeight: 700,
-                    marginBottom: "12px",
+                    marginBottom: 12,
                   }}
                 >
                   {latest ? (
@@ -278,25 +260,24 @@ export default function SensorDetail() {
                     "-"
                   )}
                 </div>
-                <div style={{ fontSize: "14px", color: "#555" }}>
+                <div style={{ fontSize: 14, color: "#555" }}>
                   측정 시간:{" "}
                   {latest ? formatDateTime(latest.upload_at) : "-"}
                 </div>
               </div>
             </div>
 
-            {/* 센서 메타 정보 */}
             <div
               style={{
                 backgroundColor: "#e7ecf2",
-                borderRadius: "16px",
-                padding: "24px",
+                borderRadius: 16,
+                padding: 24,
               }}
             >
               <h2
                 style={{
-                  fontSize: "20px",
-                  marginBottom: "16px",
+                  fontSize: 20,
+                  marginBottom: 16,
                 }}
               >
                 센서 정보
@@ -305,160 +286,106 @@ export default function SensorDetail() {
               <div
                 style={{
                   backgroundColor: "#fff",
-                  borderRadius: "16px",
-                  padding: "20px",
+                  borderRadius: 16,
+                  padding: 20,
                   boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                  fontSize: "14px",
+                  fontSize: 14,
                 }}
               >
-                {sensor ? (
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                    }}
-                  >
-                    <tbody>
-                      <tr>
-                        <th
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <tbody>
+                    <tr>
+                      <th style={thStyle}>센서 ID</th>
+                      <td style={tdStyle}>{sensor.id}</td>
+                    </tr>
+                    <tr>
+                      <th style={thStyle}>타입</th>
+                      <td style={tdStyle}>{sensor.sensor_type}</td>
+                    </tr>
+                    <tr>
+                      <th style={thStyle}>회사 ID</th>
+                      <td style={tdStyle}>{sensor.company_id}</td>
+                    </tr>
+                    <tr>
+                      <th style={thStyle}>구역 ID</th>
+                      <td style={tdStyle}>{sensor.area_id}</td>
+                    </tr>
+                    <tr>
+                      <th style={thStyle}>상태</th>
+                      <td style={tdStyle}>
+                        <span
                           style={{
-                            textAlign: "left",
-                            padding: "4px 0",
-                            color: "#666",
-                            width: "30%",
+                            display: "inline-block",
+                            padding: "2px 10px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            marginRight: 6,
+                            backgroundColor: sensor.is_active
+                              ? "#d3f9d8"
+                              : "#f1f3f5",
+                            color: sensor.is_active
+                              ? "#2b8a3e"
+                              : "#868e96",
                           }}
                         >
-                          센서 ID
-                        </th>
-                        <td style={{ padding: "4px 0" }}>{sensor.id}</td>
-                      </tr>
-                      <tr>
-                        <th
+                          {sensor.is_active ? "ACTIVE" : "INACTIVE"}
+                        </span>
+                        <span
                           style={{
-                            textAlign: "left",
-                            padding: "4px 0",
-                            color: "#666",
+                            display: "inline-block",
+                            padding: "2px 10px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            backgroundColor: sensor.is_alarm
+                              ? "#ffe3e3"
+                              : "#f1f3f5",
+                            color: sensor.is_alarm ? "#c92a2a" : "#868e96",
                           }}
                         >
-                          타입
-                        </th>
-                        <td style={{ padding: "4px 0" }}>
-                          {sensor.sensor_type}
-                        </td>
-                      </tr>
-                      <tr>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            padding: "4px 0",
-                            color: "#666",
-                          }}
-                        >
-                          회사 ID
-                        </th>
-                        <td style={{ padding: "4px 0" }}>
-                          {sensor.company_id}
-                        </td>
-                      </tr>
-                      <tr>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            padding: "4px 0",
-                            color: "#666",
-                          }}
-                        >
-                          구역 ID
-                        </th>
-                        <td style={{ padding: "4px 0" }}>
-                          {sensor.area_id}
-                        </td>
-                      </tr>
-                      <tr>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            padding: "4px 0",
-                            color: "#666",
-                          }}
-                        >
-                          상태
-                        </th>
-                        <td style={{ padding: "4px 0" }}>
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "2px 10px",
-                              borderRadius: "999px",
-                              fontSize: "12px",
-                              marginRight: "6px",
-                              backgroundColor: sensor.is_active
-                                ? "#d3f9d8"
-                                : "#f1f3f5",
-                              color: sensor.is_active ? "#2b8a3e" : "#868e96",
-                            }}
-                          >
-                            {sensor.is_active ? "ACTIVE" : "INACTIVE"}
-                          </span>
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "2px 10px",
-                              borderRadius: "999px",
-                              fontSize: "12px",
-                              backgroundColor: sensor.is_alarm
-                                ? "#ffe3e3"
-                                : "#f1f3f5",
-                              color: sensor.is_alarm ? "#c92a2a" : "#868e96",
-                            }}
-                          >
-                            {sensor.is_alarm ? "ALARM ON" : "ALARM OFF"}
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            padding: "4px 0",
-                            color: "#666",
-                          }}
-                        >
-                          생성일
-                        </th>
-                        <td style={{ padding: "4px 0" }}>
-                          {formatDateTime(sensor.created_at)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            padding: "4px 0",
-                            color: "#666",
-                          }}
-                        >
-                          수정일
-                        </th>
-                        <td style={{ padding: "4px 0" }}>
-                          {formatDateTime(sensor.updated_at)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                ) : (
-                  <div>센서 정보를 불러올 수 없습니다.</div>
-                )}
+                          {sensor.is_alarm ? "ALARM ON" : "ALARM OFF"}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th style={thStyle}>하한(threshold_min)</th>
+                      <td style={tdStyle}>
+                        {sensor.threshold_min ?? "-"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th style={thStyle}>상한(threshold_max)</th>
+                      <td style={tdStyle}>
+                        {sensor.threshold_max ?? "-"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th style={thStyle}>생성일</th>
+                      <td style={tdStyle}>
+                        {formatDateTime(sensor.created_at)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th style={thStyle}>수정일</th>
+                      <td style={tdStyle}>
+                        {formatDateTime(sensor.updated_at)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </section>
 
-          {/* 최근 데이터 테이블 */}
           <section>
             <h2
               style={{
-                fontSize: "20px",
-                marginBottom: "12px",
+                fontSize: 20,
+                marginBottom: 12,
               }}
             >
               최근 데이터
@@ -467,9 +394,9 @@ export default function SensorDetail() {
             <div
               style={{
                 backgroundColor: "#fff",
-                borderRadius: "12px",
+                borderRadius: 12,
                 boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                padding: "16px",
+                padding: 16,
                 overflowX: "auto",
               }}
             >
@@ -480,67 +407,24 @@ export default function SensorDetail() {
                   style={{
                     width: "100%",
                     borderCollapse: "collapse",
-                    fontSize: "14px",
+                    fontSize: 14,
                   }}
                 >
                   <thead>
                     <tr>
-                      <th
-                        style={{
-                          textAlign: "left",
-                          padding: "8px 4px",
-                          borderBottom: "1px solid #dee2e6",
-                        }}
-                      >
-                        시간
-                      </th>
-                      <th
-                        style={{
-                          textAlign: "right",
-                          padding: "8px 4px",
-                          borderBottom: "1px solid #dee2e6",
-                        }}
-                      >
-                        데이터 번호
-                      </th>
-                      <th
-                        style={{
-                          textAlign: "right",
-                          padding: "8px 4px",
-                          borderBottom: "1px solid #dee2e6",
-                        }}
-                      >
-                        값
-                      </th>
+                      <th style={theadThStyle}>시간</th>
+                      <th style={theadThRight}>데이터 번호</th>
+                      <th style={theadThRight}>값</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dataList.map((row, idx) => (
                       <tr key={`${row.sensor_id || sensorId}-${idx}`}>
-                        <td
-                          style={{
-                            padding: "6px 4px",
-                            borderBottom: "1px solid #f1f3f5",
-                          }}
-                        >
+                        <td style={tbodyTdStyle}>
                           {formatDateTime(row.upload_at)}
                         </td>
-                        <td
-                          style={{
-                            padding: "6px 4px",
-                            borderBottom: "1px solid #f1f3f5",
-                            textAlign: "right",
-                          }}
-                        >
-                          {row.data_no}
-                        </td>
-                        <td
-                          style={{
-                            padding: "6px 4px",
-                            borderBottom: "1px solid #f1f3f5",
-                            textAlign: "right",
-                          }}
-                        >
+                        <td style={tbodyTdRight}>{row.data_no}</td>
+                        <td style={tbodyTdRight}>
                           {row.data_value}
                           {unit && <span> {unit}</span>}
                         </td>
@@ -556,3 +440,37 @@ export default function SensorDetail() {
     </div>
   );
 }
+
+const thStyle = {
+  textAlign: "left",
+  padding: "4px 0",
+  color: "#666",
+  width: "32%",
+};
+
+const tdStyle = {
+  padding: "4px 0",
+};
+
+const theadThStyle = {
+  textAlign: "left",
+  padding: "8px 4px",
+  borderBottom: "1px solid #dee2e6",
+};
+
+const theadThRight = {
+  textAlign: "right",
+  padding: "8px 4px",
+  borderBottom: "1px solid #dee2e6",
+};
+
+const tbodyTdStyle = {
+  padding: "6px 4px",
+  borderBottom: "1px solid #f1f3f5",
+};
+
+const tbodyTdRight = {
+  padding: "6px 4px",
+  borderBottom: "1px solid #f1f3f5",
+  textAlign: "right",
+};

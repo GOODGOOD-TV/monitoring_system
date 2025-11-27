@@ -21,7 +21,6 @@ router.get('/', async (req, res) => {
 
   const area_id = req.query.area_id ? parseInt(req.query.area_id, 10) : null;
 
-  // 공통 WHERE 절 + 파라미터
   let where = 'company_id=:company_id AND deleted_at IS NULL';
   const params = { company_id, size, offset };
 
@@ -60,7 +59,7 @@ router.get('/', async (req, res) => {
     is_sucsess: true,
     message: '센서 목록 조회 성공',
     data: rows,
-    meta: { page, size, total: cnt },
+    meta: { page, size, total: cnt }
   });
 });
 
@@ -71,10 +70,23 @@ router.get('/:sensorId', async (req, res) => {
   if (!id) return res.fail(400, 'BAD_REQUEST', '잘못된 센서 ID');
 
   const [rows] = await pool.query(
-    `SELECT id, company_id, area_id, sensor_type, model, is_active, is_alarm,
-            pos_x, pos_y, created_at, updated_at
+    `SELECT id,
+            company_id,
+            area_id,
+            sensor_type,
+            model,
+            is_active,
+            is_alarm,
+            threshold_min,
+            threshold_max,
+            pos_x,
+            pos_y,
+            created_at,
+            updated_at
        FROM sensor
-      WHERE id=:id AND company_id=:company_id AND deleted_at IS NULL`,
+      WHERE id=:id
+        AND company_id=:company_id
+        AND deleted_at IS NULL`,
     { id, company_id }
   );
 
@@ -94,17 +106,24 @@ router.get('/:sensorId/data', async (req, res) => {
     Math.max(1, parseInt(req.query.limit ?? '50', 10))
   );
 
-  // 이 센서가 이 회사 소속인지 확인
+  // 이 회사 센서인지 확인
   const [sensorRows] = await pool.query(
-    `SELECT id 
-       FROM sensor 
-      WHERE id=:id AND company_id=:company_id AND deleted_at IS NULL`,
+    `SELECT id
+       FROM sensor
+      WHERE id=:id
+        AND company_id=:company_id
+        AND deleted_at IS NULL`,
     { id, company_id }
   );
   if (!sensorRows.length) return res.fail(404, 'NOT_FOUND', '센서 없음');
 
   const [rows] = await pool.query(
-    `SELECT sensor_id, upload_at, data_no, data_value, data_sum, data_num
+    `SELECT sensor_id,
+            upload_at,
+            data_no,
+            data_value,
+            data_sum,
+            data_num
        FROM sensor_data
       WHERE sensor_id=:id
       ORDER BY upload_at DESC, data_no DESC
@@ -134,7 +153,6 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
     return res.fail(400, 'INVALID_REQUEST_BODY', 'area_id/sensor_type/model 필수');
   }
 
-  // area 소속 검사(멀티테넌시 보장)
   const [area] = await pool.query(
     'SELECT id FROM area WHERE id=:area_id AND company_id=:company_id AND deleted_at IS NULL',
     { area_id, company_id }
@@ -153,7 +171,8 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
         threshold_max,
         pos_x,
         pos_y
-     ) VALUES (
+     )
+     VALUES (
         :company_id,
         :area_id,
         :sensor_type,
@@ -187,7 +206,7 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
   return res.status(201).json({
     is_sucsess: true,
     message: '센서 생성 성공',
-    data: row[0],
+    data: row[0]
   });
 });
 
@@ -195,6 +214,7 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
 router.patch('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
   const company_id = req.company_id;
   const id = +req.params.sensorId;
+
   const {
     model = null,
     is_active = null,
@@ -207,7 +227,6 @@ router.patch('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
 
   const [r1] = await pool.query(
     `UPDATE sensor
-<<<<<<< Updated upstream
         SET model         = COALESCE(:model, model),
             is_active     = COALESCE(:is_active, is_active),
             is_alarm      = COALESCE(:is_alarm, is_alarm),
@@ -216,15 +235,9 @@ router.patch('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
             pos_x         = COALESCE(:pos_x, pos_x),
             pos_y         = COALESCE(:pos_y, pos_y),
             updated_at    = UTC_TIMESTAMP()
-=======
-        SET model      = COALESCE(:model, model),
-            is_active  = COALESCE(:is_active, is_active),
-            is_alarm   = COALESCE(:is_alarm, is_alarm),
-            pos_x      = COALESCE(:pos_x, pos_x),
-            pos_y      = COALESCE(:pos_y, pos_y),
-            updated_at = UTC_TIMESTAMP()
->>>>>>> Stashed changes
-      WHERE id=:id AND company_id=:company_id AND deleted_at IS NULL`,
+      WHERE id=:id
+        AND company_id=:company_id
+        AND deleted_at IS NULL`,
     {
       id,
       company_id,
