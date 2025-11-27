@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+  ReferenceLine,
 } from "recharts";
 import { api, getAccessToken } from "../lib/api.js";
 
@@ -10,10 +17,18 @@ function typeSymbol(type) {
   return "";
 }
 
+// 보고서 시간 옵션 (hours 기준)
+const REPORT_HOUR_OPTIONS = [
+  { value: 24, label: "최근 24시간" },
+  { value: 24 * 7, label: "최근 7일" },
+  { value: 24 * 30, label: "최근 1개월" },
+  { value: 24 * 30 * 6, label: "최근 6개월" },
+];
+
 export default function AnalyticsPage() {
   const [sensors, setSensors] = useState([]);
   const [sensorId, setSensorId] = useState("");
-  const [range, setRange] = useState("24h");    // 1h|6h|24h|7d
+  const [range, setRange] = useState("24h"); // 1h|6h|24h|7d
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,12 +37,27 @@ export default function AnalyticsPage() {
 
   const [forecastRows, setForecastRows] = useState([]);
 
+  // 🔹 보고서 모달 상태
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportSensorId, setReportSensorId] = useState("");
+  const [reportName, setReportName] = useState("");
+  const [reportHours, setReportHours] = useState(24); // 기본 24시간
+  const [reporting, setReporting] = useState(false);
+  const [reportMsg, setReportMsg] = useState("");
+  const [reportErr, setReportErr] = useState("");
 
   async function fetchSensors() {
     setErr("");
     try {
-      if (!getAccessToken()) { window.location.assign("/login"); return; }
-      const q = new URLSearchParams({ page: "1", size: "200", sort: "created_at DESC" });
+      if (!getAccessToken()) {
+        window.location.assign("/login");
+        return;
+      }
+      const q = new URLSearchParams({
+        page: "1",
+        size: "200",
+        sort: "created_at DESC",
+      });
       const json = await api(`/api/v1/sensors?${q.toString()}`);
       if (!json?.is_sucsess) throw new Error(json?.message || "센서 목록 실패");
 
@@ -46,7 +76,10 @@ export default function AnalyticsPage() {
     setErr("");
 
     try {
-      if (!getAccessToken()) { window.location.assign("/login"); return; }
+      if (!getAccessToken()) {
+        window.location.assign("/login");
+        return;
+      }
 
       const now = new Date();
       const { from, to, fromObj, toObj } = buildRange(range, now);
@@ -58,7 +91,7 @@ export default function AnalyticsPage() {
         to: to.toISOString(),
       });
 
-      // 2) 단기 예측(6분, 1분 간격)용 쿼리
+      // 2) 단기 예측(60분, 1분 간격)
       const q2 = new URLSearchParams({
         sensor_id: String(sensorId),
         horizon_minutes: "60",
@@ -70,8 +103,10 @@ export default function AnalyticsPage() {
         api(`/api/v1/analytics/sensor-forecast?${q2.toString()}`),
       ]);
 
-      if (!jsonSeries?.is_sucsess) throw new Error(jsonSeries?.message || "데이터 조회 실패");
-      if (!jsonForecast?.is_sucsess) throw new Error(jsonForecast?.message || "예측 실패");
+      if (!jsonSeries?.is_sucsess)
+        throw new Error(jsonSeries?.message || "데이터 조회 실패");
+      if (!jsonForecast?.is_sucsess)
+        throw new Error(jsonForecast?.message || "예측 실패");
 
       const data = (jsonSeries.data || []).map((d) => {
         const t = d.upload_at || d.time;
@@ -80,7 +115,7 @@ export default function AnalyticsPage() {
           label: safeTime(t),
           time: t,
           value: v,
-          temp: v,                // 온도 센서 기준
+          temp: v, // 온도 센서 기준
           hum: undefined,
           is_anomaly: !!d.is_anomaly,
           anomaly_score: d.anomaly_score ?? 0,
@@ -108,36 +143,110 @@ export default function AnalyticsPage() {
     }
   }
 
-  useEffect(() => { fetchSensors(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
+  // 🔹 보고서 모달 열기
+  function openReportModal() {
+    // 기본값: 현재 선택된 센서 / 24시간 / 이름 비움
+    const fallbackSensorId =
+      sensorId || (sensors.length ? String(sensors[0].id) : "");
+    setReportSensorId(fallbackSensorId);
+    setReportHours(24);
+    setReportName("");
+    setReportErr("");
+    setReportMsg("");
+    setReportModalOpen(true);
+  }
 
-  const sensor = sensors.find(s => String(s.id) === String(sensorId));
+  // 🔹 보고서 생성 호출
+  async function handleCreateReport() {
+    if (!reportSensorId) {
+      setReportErr("센서를 선택하세요.");
+      return;
+    }
+    if (!getAccessToken()) {
+      window.location.assign("/login");
+      return;
+    }
+
+    setReporting(true);
+    setReportErr("");
+    setReportMsg("");
+
+    try {
+      const q = new URLSearchParams({
+        sensor_id: String(reportSensorId),
+        hours: String(reportHours),
+      });
+      // 보고서 이름을 백엔드에서 받도록 구현했다면 여기에 추가
+      if (reportName.trim()) {
+        q.append("name", reportName.trim());
+      }
+
+      const res = await api(`/api/v1/analytics/sensor-report?${q.toString()}`);
+
+      if (!res?.is_sucsess) {
+        throw new Error(res?.message || "보고서 생성 실패");
+      }
+
+      // 이메일 전송까지 백엔드에서 처리한다고 가정
+      setReportMsg("보고서가 생성되어 이메일로 전송되었습니다.");
+    } catch (e) {
+      setReportErr(e.message || String(e));
+    } finally {
+      setReporting(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchSensors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sensor = sensors.find((s) => String(s.id) === String(sensorId));
   const type = sensor?.sensor_type ?? "temperature"; // "temperature" or "humidity"
-  const tmin = (sensor?.threshold_min != null) ? Number(sensor.threshold_min) - 3: 'auto';
-  const tmax = (sensor?.threshold_max != null) ? Number(sensor.threshold_max) + 3 : 'auto';
+  const tmin =
+    sensor?.threshold_min != null ? Number(sensor.threshold_min) - 3 : "auto";
+  const tmax =
+    sensor?.threshold_max != null ? Number(sensor.threshold_max) + 3 : "auto";
+
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 12px" }}>데이터분석</h1>
+    <div style={{ padding: 16, position: "relative" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 12px" }}>
+        데이터분석
+      </h1>
 
       {/* 상단 컨트롤 바: 센서 / 기간 / 조회 */}
       <div style={bar}>
         <div style={row}>
-          <select value={sensorId} onChange={(e)=>setSensorId(e.target.value)} style={sel}>
-            {sensors.map(s => (
+          <select
+            value={sensorId}
+            onChange={(e) => setSensorId(e.target.value)}
+            style={sel}
+          >
+            {sensors.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.model ? `${s.model} (#${s.id} / ${typeSymbol(s.sensor_type)})` : `SEN${s.id} (#${s.id}/${typeSymbol(s.sensor_type)})`}
+                {s.model
+                  ? `${s.model} (#${s.id} / ${typeSymbol(s.sensor_type)})`
+                  : `SEN${s.id} (#${s.id}/${typeSymbol(s.sensor_type)})`}
               </option>
             ))}
           </select>
 
-          {/* ✅ 기간만 선택 */}
-          <select value={range} onChange={(e)=>setRange(e.target.value)} style={sel}>
+          <select
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+            style={sel}
+          >
             <option value="1h">최근 1시간</option>
             <option value="6h">최근 6시간</option>
             <option value="24h">최근 24시간</option>
             <option value="7d">최근 7일</option>
           </select>
 
-          <button onClick={fetchSeries} disabled={loading || !sensorId} style={btnPrimary}>
+          <button
+            onClick={fetchSeries}
+            disabled={loading || !sensorId}
+            style={btnPrimary}
+          >
             {loading ? "조회중…" : "조회"}
           </button>
         </div>
@@ -145,13 +254,31 @@ export default function AnalyticsPage() {
 
       {err && <div style={{ color: "#dc2626", marginTop: 8 }}>{err}</div>}
 
-      <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:8, padding: 12, marginTop: 12 }}>
-        <div style={{ color:"#475569", fontSize:14, marginBottom: 8 }}>
+      {/* 실제 데이터 차트 */}
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 8,
+          padding: 12,
+          marginTop: 12,
+        }}
+      >
+        <div
+          style={{
+            color: "#475569",
+            fontSize: 14,
+            marginBottom: 8,
+          }}
+        >
           {rangeLabel || "조회 범위 없음"}
         </div>
         <div style={{ width: "100%", height: 420 }}>
           <ResponsiveContainer>
-            <LineChart data={rows} margin={{ top: 12, right: 16, bottom: 12, left: 24 }}>
+            <LineChart
+              data={rows}
+              margin={{ top: 12, right: 16, bottom: 12, left: 24 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" minTickGap={20} />
               <YAxis domain={[tmin, tmax]} />
@@ -163,7 +290,9 @@ export default function AnalyticsPage() {
                   stroke="#22c55e"
                   strokeDasharray="4 4"
                   label={{
-                    value: `하한 ${parseFloat(sensor.threshold_min).toFixed(1)}`,
+                    value: `하한 ${parseFloat(
+                      sensor.threshold_min
+                    ).toFixed(1)}`,
                     position: "left",
                     fontSize: 12,
                     fill: "#16a34a",
@@ -178,7 +307,9 @@ export default function AnalyticsPage() {
                   stroke="#ef4444"
                   strokeDasharray="4 4"
                   label={{
-                    value: `상한 ${parseFloat(sensor.threshold_max).toFixed(1)}`,
+                    value: `상한 ${parseFloat(
+                      sensor.threshold_max
+                    ).toFixed(1)}`,
                     position: "left",
                     fontSize: 12,
                     fill: "#b91c1c",
@@ -186,24 +317,52 @@ export default function AnalyticsPage() {
                   }}
                 />
               )}
-              {(type === "temperature") && (
-                <Line type="monotone" dataKey="temp" dot={false} name="온도(°C)" />
+              {type === "temperature" && (
+                <Line
+                  type="monotone"
+                  dataKey="temp"
+                  dot={false}
+                  name="온도(°C)"
+                />
               )}
-              {(type === "humidity") && (
-                <Line type="monotone" dataKey="hum" dot={false} name="습도(%)" />
+              {type === "humidity" && (
+                <Line
+                  type="monotone"
+                  dataKey="hum"
+                  dot={false}
+                  name="습도(%)"
+                />
               )}
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
-      {/* 예측 전용 차트 하나 더 아래에 추가 */}
-      <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:8, padding: 12, marginTop: 12 }}>
-        <div style={{ color:"#475569", fontSize:14, marginBottom: 8 }}>
+
+      {/* 예측 전용 차트 */}
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 8,
+          padding: 12,
+          marginTop: 12,
+        }}
+      >
+        <div
+          style={{
+            color: "#475569",
+            fontSize: 14,
+            marginBottom: 8,
+          }}
+        >
           단기 예측 (다음 1시간)
         </div>
         <div style={{ width: "100%", height: 260 }}>
           <ResponsiveContainer>
-            <LineChart data={forecastRows} margin={{ top: 12, right: 16, bottom: 12, left: 24 }}>
+            <LineChart
+              data={forecastRows}
+              margin={{ top: 12, right: 16, bottom: 12, left: 24 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" minTickGap={20} />
               <YAxis domain={[tmin, tmax]} />
@@ -213,15 +372,210 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* 🔴 페이지 맨 아래 오른쪽: 보고서 생성 버튼 */}
+      <div
+        style={{
+          marginTop: 16,
+          display: "flex",
+          justifyContent: "flex-end",
+        }}
+      >
+        <button
+          style={btnSecondary}
+          onClick={openReportModal}
+          disabled={!sensors.length}
+        >
+          보고서 생성
+        </button>
+      </div>
+
+      {/* 🔴 보고서 생성 모달 */}
+      {reportModalOpen && (
+        <div style={modalOverlay}>
+          <div style={modalBox}>
+            <h2
+              style={{
+                marginTop: 0,
+                marginBottom: 12,
+                fontSize: 18,
+                fontWeight: 600,
+              }}
+            >
+              센서 보고서 생성
+            </h2>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* 센서 선택 */}
+              <div>
+                <div style={modalLabel}>센서</div>
+                <select
+                  value={reportSensorId}
+                  onChange={(e) => setReportSensorId(e.target.value)}
+                  style={modalSelect}
+                >
+                  <option value="">센서 선택</option>
+                  {sensors.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.model
+                        ? `${s.model} (#${s.id} / ${typeSymbol(
+                            s.sensor_type
+                          )})`
+                        : `SEN${s.id} (#${s.id}/${typeSymbol(s.sensor_type)})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 보고서 이름 */}
+              <div>
+                <div style={modalLabel}>보고서 이름 (선택)</div>
+                <input
+                  type="text"
+                  value={reportName}
+                  onChange={(e) => setReportName(e.target.value)}
+                  placeholder="예: 11월 28일 24h 온도 분석"
+                  style={modalInput}
+                />
+              </div>
+
+              {/* 시간 선택 드롭다운 */}
+              <div>
+                <div style={modalLabel}>기간</div>
+                <select
+                  value={reportHours}
+                  onChange={(e) => setReportHours(Number(e.target.value))}
+                  style={modalSelect}
+                >
+                  {REPORT_HOUR_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {reportErr && (
+                <div style={{ color: "#dc2626", fontSize: 13 }}>
+                  {reportErr}
+                </div>
+              )}
+              {reportMsg && (
+                <div style={{ color: "#16a34a", fontSize: 13 }}>
+                  {reportMsg}
+                </div>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                marginTop: 18,
+              }}
+            >
+              <button
+                style={btnSecondary}
+                onClick={() => setReportModalOpen(false)}
+                disabled={reporting}
+              >
+                닫기
+              </button>
+              <button
+                style={btnPrimary}
+                onClick={handleCreateReport}
+                disabled={reporting}
+              >
+                {reporting ? "생성 중…" : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* 스타일 */
-const bar = { display: "grid", gridTemplateColumns: "1fr", gap: 8 };
-const row = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 };
-const sel = { height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff" };
-const btnPrimary = { padding: "8px 12px", borderRadius: 8, border: "1px solid #111827", background: "#111827", color: "#fff", cursor: "pointer" };
+const bar = {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: 8,
+};
+const row = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: 8,
+};
+const sel = {
+  height: 36,
+  padding: "0 10px",
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  background: "#fff",
+};
+const btnPrimary = {
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: "1px solid #111827",
+  background: "#111827",
+  color: "#fff",
+  cursor: "pointer",
+};
+const btnSecondary = {
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  background: "#fff",
+  color: "#111827",
+  cursor: "pointer",
+};
+
+/* 모달 스타일 */
+const modalOverlay = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15,23,42,0.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 50,
+};
+
+const modalBox = {
+  width: "100%",
+  maxWidth: 420,
+  background: "#fff",
+  borderRadius: 10,
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+  padding: 20,
+};
+
+const modalLabel = {
+  fontSize: 13,
+  color: "#4b5563",
+  marginBottom: 4,
+};
+
+const modalSelect = {
+  width: "100%",
+  height: 36,
+  padding: "0 10px",
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  background: "#fff",
+};
+
+const modalInput = {
+  width: "100%",
+  height: 36,
+  padding: "0 10px",
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  background: "#fff",
+};
 
 /* 유틸 */
 function safeTime(ts) {
@@ -235,7 +589,10 @@ function safeTime(ts) {
   }
 }
 
-function toNum(v){ const n = Number(v); return Number.isFinite(n) ? n : undefined; }
+function toNum(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
 
 // range에 따라 from/to 계산
 function buildRange(range, base = new Date()) {
@@ -260,7 +617,7 @@ function buildRange(range, base = new Date()) {
   return { from, to, fromObj: from, toObj: to };
 }
 
-// 기간 길이에 따라 bucket 자동 선택
+// 기간 길이에 따라 bucket 자동 선택 (지금은 안 쓰지만 유지)
 function chooseBucket(from, to) {
   const ms = to.getTime() - from.getTime();
   const hours = ms / (1000 * 60 * 60);
@@ -272,12 +629,18 @@ function chooseBucket(from, to) {
 }
 
 function formatRange(from, to, range) {
-  // “최근 24시간” 같은 문구를 우선 보여주고 싶으면 그냥 이거 리턴해도 됨
   switch (range) {
-    case "1h":  return "최근 1시간";
-    case "6h":  return "최근 6시간";
-    case "24h": return "최근 24시간";
-    case "7d":  return "최근 7일";
-    default:    return `${from.toISOString()} ~ ${to.toISOString()}`;
+    case "1h":
+      return "최근 1시간";
+    case "6h":
+      return "최근 6시간";
+    case "24h":
+      return "최근 24시간";
+    case "7d":
+      return "최근 7일";
+    default:
+      return `${from.toISOString()} ~ ${to.toISOString()}`;
   }
 }
+// 이메일로 보고서 전송 로직 필요
+// PDF 자동 생성(그래프 + 분석)도 생각해봐야할듯. 이 경우 PDF 다운로드 + 이메일 전송
