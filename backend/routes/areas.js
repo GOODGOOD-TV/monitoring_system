@@ -5,6 +5,33 @@ import { mustRole } from '../middlewares/mustRole.js';
 
 const router = Router();
 
+/** ⭐ GET /api/v1/areas/:areaId
+ *  회사별 구역 단일 조회 (ZoneSensorsPage에서 필요)
+ */
+router.get("/:areaId", async (req, res) => {
+  const company_id = req.company_id;
+  const id = parseInt(req.params.areaId, 10);
+
+  if (!Number.isInteger(id)) {
+    return res.fail(400, "INVALID_ID", "유효하지 않은 구역 ID");
+  }
+
+  const [rows] = await pool.query(
+    `SELECT id, company_id, area_name, is_active, created_at
+       FROM area
+      WHERE id = :id
+        AND company_id = :company_id
+        AND deleted_at IS NULL`,
+    { id, company_id }
+  );
+
+  if (rows.length === 0) {
+    return res.fail(404, "NOT_FOUND", "구역 없음");
+  }
+
+  return res.ok(rows[0], "구역 조회 성공");
+});
+
 /** GET /api/v1/areas */
 router.get('/', async (req, res) => {
   const company_id = req.company_id;

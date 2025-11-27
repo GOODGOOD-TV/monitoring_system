@@ -7,6 +7,7 @@ const router = Router();
 
 /** GET /api/v1/sensors */
 router.get('/', async (req, res) => {
+  console.log('sensors')
   const company_id = req.company_id;
   const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
   const size = Math.min(200, Math.max(1, parseInt(req.query.size ?? '20', 10)));
@@ -18,19 +19,30 @@ router.get('/', async (req, res) => {
     'created_at DESC'
   );
 
+  const area_id = req.query.area_id ? parseInt(req.query.area_id, 10) : null;
+
+  // 🔹 공통 WHERE 절 + 파라미터
+  let where = 'company_id=:company_id AND deleted_at IS NULL';
+  const params = { company_id, size, offset };
+
+  if (Number.isInteger(area_id)) {
+    where += ' AND area_id=:area_id';
+    params.area_id = area_id;
+  }
+
   const [[{ cnt }]] = await pool.query(
-    'SELECT COUNT(*) cnt FROM sensor WHERE company_id=:company_id AND deleted_at IS NULL',
-    { company_id }
+    `SELECT COUNT(*) cnt FROM sensor WHERE ${where}`,
+    params
   );
 
   const [rows] = await pool.query(
     `SELECT id, company_id, area_id, sensor_type, model, is_active, is_alarm,
             pos_x, pos_y, created_at, updated_at
        FROM sensor
-      WHERE company_id=:company_id AND deleted_at IS NULL
+      WHERE ${where}
       ${orderSql}
       LIMIT :size OFFSET :offset`,
-    { company_id, size, offset }
+    params
   );
 
   return res.status(200).json({

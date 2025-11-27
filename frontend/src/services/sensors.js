@@ -1,55 +1,5 @@
 // sensors.js — 구역(zone)별 센서 mock 데이터
-
-let SENSORS = [
-    {
-      id: "s-a003-01",
-      zoneId: "A003",
-      name: "무연-1",
-      status: "정상",
-      temp: 4.2,
-      hum: 52,
-      tempLow: 2,
-      tempHigh: 8,
-      humLow: 40,
-      humHigh: 65,
-    },
-    {
-      id: "s-a021-01",
-      zoneId: "A021",
-      name: "sp1-1",
-      status: "정상",
-      temp: 25.0,
-      hum: 58.0,
-      tempLow: 20,
-      tempHigh: 28,
-      humLow: 40,
-      humHigh: 65,
-    },
-    {
-      id: "s-a024-01",
-      zoneId: "A024",
-      name: "sp8-1",
-      status: "주의",
-      temp: 22.0,
-      hum: 65.0,
-      tempLow: 20,
-      tempHigh: 26,
-      humLow: 40,
-      humHigh: 60,
-    },
-    {
-      id: "s-a031-01",
-      zoneId: "A031",
-      name: "SP9-1",
-      status: "정상",
-      temp: 24.0,
-      hum: 55.0,
-      tempLow: 21,
-      tempHigh: 27,
-      humLow: 35,
-      humHigh: 60,
-    },
-  ];
+import { api } from "../lib/api.js";
   
   // ✅ 랜덤 센서 생성 함수 (존재하지 않는 zone 클릭 시 사용)
   function generateRandomSensors(zoneId) {
@@ -76,16 +26,23 @@ let SENSORS = [
   
   // ✅ zone별 센서 조회 함수
   export async function getSensorsByZone(zoneId) {
-    let found = SENSORS.filter((s) => s.zoneId === zoneId);
-  
-    // 센서가 없으면 자동 생성
-    if (found.length === 0) {
-      const generated = generateRandomSensors(zoneId);
-      SENSORS = SENSORS.concat(generated);
-      found = generated;
+    if (!zoneId) return [];
+
+    const qs = new URLSearchParams({
+      area_id: String(zoneId),
+      page: "1",
+      size: "200",
+      sort: "created_at DESC",
+    });
+
+    const json = await api(`/api/v1/sensors?${qs.toString()}`);
+
+    if (!json?.is_sucsess) {
+      throw new Error(json?.message || "센서 목록 조회 실패");
     }
-  
-    return found;
+
+    // 그대로 쓰든, 필요하면 매핑해서 쓰든 선택
+    return Array.isArray(json.data) ? json.data : [];
   }
   
   // ✅ 단일 센서 조회

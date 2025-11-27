@@ -1,18 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getZones } from "../services/zones";
+import { api } from "../lib/api.js";
 
 export default function ZonesPage() {
   const [zones, setZones] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    (async () => setZones(await getZones()))();
+    (async () => {
+      const res = await getZones();    // [{ id, area_name, ... }]
+      setZones(res);
+    })();
   }, []);
 
   return (
     <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>센서관리</h1>
+      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>구역관리</h1>
       <div
         style={{
           background: "#e5e7eb",

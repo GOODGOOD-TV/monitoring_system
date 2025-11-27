@@ -5,8 +5,6 @@ import {
 } from "recharts";
 import { api, getAccessToken } from "../lib/api.js";
 /**
- * 요구사항:
- *  - 하드코딩 토큰을 Authorization 헤더에 실어서 MonitoringPage처럼 호출
  *  - GET /api/v1/sensors 로 센서 목록 가져오기
  *  - GET /api/v1/sensor-data?sensor_id=&from=&to=&bucket= 로 시계열 가져오기
  *  - Recharts로 temp/hum 차트 표시
