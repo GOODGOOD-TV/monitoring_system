@@ -4,10 +4,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 
 export default function SensorEditPage() {
-  const { areaId, sensorId } = useParams();   // /zones/:areaId/sensors/:sensorId/edit
+  const { areaId, sensorId } = useParams(); // /zones/:areaId/sensors/:sensorId/edit
   const navigate = useNavigate();
 
-  // 폼 상태: 센서 이름, 알림, 상한/하한
   const [form, setForm] = useState({
     model: "",
     is_alarm: 1,
@@ -16,7 +15,7 @@ export default function SensorEditPage() {
   });
   const [loading, setLoading] = useState(true);
 
-  // 최초 진입 시 센서 정보 불러오기
+  // 기존 센서 정보 불러오기
   useEffect(() => {
     if (!sensorId) return;
 
@@ -24,7 +23,6 @@ export default function SensorEditPage() {
       setLoading(true);
       try {
         const json = await api(`/api/v1/sensors/${sensorId}`);
-        // json이 { is_sucsess, data: {...} } 형태라고 가정
         const s = json?.data || json || {};
 
         setForm({
@@ -44,7 +42,6 @@ export default function SensorEditPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // 숫자 필드
     if (["is_alarm", "threshold_max", "threshold_min"].includes(name)) {
       setForm((prev) => ({
         ...prev,
@@ -57,13 +54,13 @@ export default function SensorEditPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
       await api(`/api/v1/sensors/${sensorId}`, {
         method: "PATCH",
         body: {
           model: form.model,
           is_alarm: form.is_alarm,
-          // threshold_min/max는 나중에 백엔드 PATCH가 지원하면 같이 반영
           threshold_max: form.threshold_max,
           threshold_min: form.threshold_min,
         },
@@ -96,7 +93,6 @@ export default function SensorEditPage() {
           maxWidth: 400,
         }}
       >
-        {/* 센서 이름 (DHT22 등 기존 값이 자동으로 들어옴) */}
         <label>
           센서 이름
           <input
@@ -107,7 +103,6 @@ export default function SensorEditPage() {
           />
         </label>
 
-        {/* 알림 ON/OFF (기존 is_alarm 값으로 선택됨) */}
         <label>
           알림
           <select
@@ -121,9 +116,8 @@ export default function SensorEditPage() {
           </select>
         </label>
 
-        {/* 상한 = threshold_max */}
         <label>
-          상한
+          상한 (threshold_max)
           <input
             type="number"
             name="threshold_max"
@@ -133,9 +127,8 @@ export default function SensorEditPage() {
           />
         </label>
 
-        {/* 하한 = threshold_min */}
         <label>
-          하한
+          하한 (threshold_min)
           <input
             type="number"
             name="threshold_min"
