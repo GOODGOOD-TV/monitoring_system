@@ -1,37 +1,25 @@
-// src/pages/AnalyticsPage.jsx
 import React, { useEffect, useState } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
 } from "recharts";
 import { api, getAccessToken } from "../lib/api.js";
-/**
- *  - GET /api/v1/sensors 로 센서 목록 가져오기
- *  - GET /api/v1/sensor-data?sensor_id=&from=&to=&bucket= 로 시계열 가져오기
- *  - Recharts로 temp/hum 차트 표시
- */
 
-const API_BASE = "http://localhost:3000";
-const DEV_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiY29tcGFueV9pZCI6MSwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzYyNzkwNDgwLCJleHAiOjE3NjI3OTIyODB9.zY-KGo7QrbX3mrhtYzgUowLO5yHSHPoMYALE54ZrqIs"; // ← 네 토큰을 여기에 그대로 넣어
+function typeSymbol(type) {
+  if (type === "temperature") return "℃";
+  if (type === "humidity") return "%";
+  return "";
+}
 
 export default function AnalyticsPage() {
-  // 센서/선택
   const [sensors, setSensors] = useState([]);
   const [sensorId, setSensorId] = useState("");
+  const [range, setRange] = useState("24h");    // 1h|6h|24h|7d
 
-  // 폼 상태
-  const [metric, setMetric] = useState("temp"); // temp|hum|both
-  const [bucket, setBucket] = useState("10m");
-  const [fromDate, setFromDate] = useState(dateStr(0));       // 오늘
-  const [fromTime, setFromTime] = useState(timeMinusHours(24));// 지금-24h
-  const [toDate, setToDate] = useState(dateStr(0));           // 오늘
-  const [toTime, setToTime] = useState(nowHM());              // 지금
-
-  // 데이터/상태
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const [rangeLabel, setRangeLabel] = useState("");
 
-  // 센서 목록
   async function fetchSensors() {
     setErr("");
     try {
@@ -49,80 +37,74 @@ export default function AnalyticsPage() {
     }
   }
 
-  // 시계열
   async function fetchSeries() {
     if (!sensorId) return;
     setLoading(true);
     setErr("");
+
     try {
       if (!getAccessToken()) { window.location.assign("/login"); return; }
 
-      // 백엔드가 UTC 기대하면 toISOString으로 변환
-      const from = `${fromDate}T${fromTime}:00`;
-      const to   = `${toDate}T${toTime}:00`;
+      // ✅ 기간(range)으로 from/to, bucket 자동 계산
+      const now = new Date();
+      const { from, to, fromObj, toObj } = buildRange(range, now);
+      const bucket = chooseBucket(fromObj, toObj);
 
       const q = new URLSearchParams({
         sensor_id: String(sensorId),
-        from, to, bucket,
+        from: from.toISOString(),
+        to: to.toISOString(),
+        bucket,
       });
+
       const json = await api(`/api/v1/sensor-data?${q.toString()}`);
       if (!json?.is_sucsess) throw new Error(json?.message || "데이터 조회 실패");
 
-      const data = (json.data || []).map((d) => {
-        const ts = d.ts ?? d.timestamp ?? d.time ?? d.upload_at ?? d.upload_dtm ?? d.created_at;
-        return {
-          label: safeTime(ts),
-          temp: toNum(d.temp ?? d.temperature ?? d.t),
-          hum:  toNum(d.hum  ?? d.humidity    ?? d.h),
-        };
-      });
+      const data = (json.data || []).map((d) => ({
+        label: safeTime(d.upload_at),
+        temp: toNum(d.data_value),
+        hum: undefined, // 나중에 습도 센서 생기면 분기해서 채우면 됨
+      }));
 
       setRows(data);
+      setRangeLabel(formatRange(fromObj, toObj, range));
     } catch (e) {
       setErr(e.message || String(e));
       setRows([]);
+      setRangeLabel("");
     } finally {
       setLoading(false);
     }
   }
 
-  // 최초 로드: 센서
   useEffect(() => { fetchSensors(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
+
+  const sensor = sensors.find(s => String(s.id) === String(sensorId));
+  const type = sensor?.sensor_type ?? "temperature"; // "temperature" or "humidity"
 
   return (
     <div style={{ padding: 16 }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 12px" }}>데이터분석</h1>
 
-      {/* 컨트롤 바 */}
+      {/* 상단 컨트롤 바: 센서 / 기간 / 조회 */}
       <div style={bar}>
         <div style={row}>
           <select value={sensorId} onChange={(e)=>setSensorId(e.target.value)} style={sel}>
             {sensors.map(s => (
               <option key={s.id} value={s.id}>
-                {s.model ? `${s.model} (#${s.id})` : `센서 #${s.id}`}
+                {s.model ? `${s.model} (#${s.id}/${typeSymbol(s.sensor_type)})` : `SEN${s.id} (#${s.id}/${typeSymbol(s.sensor_type)})`}
               </option>
             ))}
           </select>
 
-          <select value={metric} onChange={(e)=>setMetric(e.target.value)} style={sel}>
-            <option value="temp">항목 온도</option>
-            <option value="hum">항목 습도</option>
-            <option value="both">온도 + 습도</option>
+          {/* ✅ 기간만 선택 */}
+          <select value={range} onChange={(e)=>setRange(e.target.value)} style={sel}>
+            <option value="1h">최근 1시간</option>
+            <option value="6h">최근 6시간</option>
+            <option value="24h">최근 24시간</option>
+            <option value="7d">최근 7일</option>
           </select>
 
-          <select value={bucket} onChange={(e)=>setBucket(e.target.value)} style={sel}>
-            <option value="5m">간격 5분</option>
-            <option value="10m">간격 10분</option>
-            <option value="30m">간격 30분</option>
-            <option value="1h">간격 1시간</option>
-          </select>
-        </div>
-
-        <div style={row}>
-          <input type="date" value={fromDate} onChange={(e)=>setFromDate(e.target.value)} style={inp}/>
-          <input type="time" value={fromTime} onChange={(e)=>setFromTime(e.target.value)} style={inp}/>
-          <input type="date" value={toDate} onChange={(e)=>setToDate(e.target.value)} style={inp}/>
-          <input type="time" value={toTime} onChange={(e)=>setToTime(e.target.value)} style={inp}/>
           <button onClick={fetchSeries} disabled={loading || !sensorId} style={btnPrimary}>
             {loading ? "조회중…" : "조회"}
           </button>
@@ -131,10 +113,9 @@ export default function AnalyticsPage() {
 
       {err && <div style={{ color: "#dc2626", marginTop: 8 }}>{err}</div>}
 
-      {/* 차트 */}
       <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:8, padding: 12, marginTop: 12 }}>
         <div style={{ color:"#475569", fontSize:14, marginBottom: 8 }}>
-          {labelRange(fromDate, fromTime, toDate, toTime)} · {bucket}
+          {rangeLabel || "조회 범위 없음"}
         </div>
         <div style={{ width: "100%", height: 420 }}>
           <ResponsiveContainer>
@@ -143,10 +124,10 @@ export default function AnalyticsPage() {
               <XAxis dataKey="label" minTickGap={20} />
               <YAxis />
               <Tooltip />
-              {(metric === "temp" || metric === "both") && (
+              {(type === "temperature") && (
                 <Line type="monotone" dataKey="temp" dot={false} name="온도(°C)" />
               )}
-              {(metric === "hum" || metric === "both") && (
+              {(type === "humidity") && (
                 <Line type="monotone" dataKey="hum" dot={false} name="습도(%)" />
               )}
             </LineChart>
@@ -161,35 +142,63 @@ export default function AnalyticsPage() {
 const bar = { display: "grid", gridTemplateColumns: "1fr", gap: 8 };
 const row = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 };
 const sel = { height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff" };
-const inp = { height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff" };
 const btnPrimary = { padding: "8px 12px", borderRadius: 8, border: "1px solid #111827", background: "#111827", color: "#fff", cursor: "pointer" };
 
 /* 유틸 */
-function dateStr(deltaDays = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + deltaDays);
-  return d.toISOString().slice(0, 10);
-}
-function nowHM() {
-  const d = new Date();
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-function timeMinusHours(h=24) {
-  const d = new Date();
-  d.setHours(d.getHours() - h);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
 function safeTime(ts) {
   try {
     const d = new Date(ts);
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${hh}:${mm}`;
-  } catch { return String(ts); }
+  } catch {
+    return String(ts);
+  }
 }
-function labelRange(fd, ft, td, tt) { return `${fd} ${ft} ~ ${td} ${tt}`; }
+
 function toNum(v){ const n = Number(v); return Number.isFinite(n) ? n : undefined; }
+
+// range에 따라 from/to 계산
+function buildRange(range, base = new Date()) {
+  const to = new Date(base);
+  const from = new Date(base);
+  switch (range) {
+    case "1h":
+      from.setHours(from.getHours() - 1);
+      break;
+    case "6h":
+      from.setHours(from.getHours() - 6);
+      break;
+    case "24h":
+      from.setHours(from.getHours() - 24);
+      break;
+    case "7d":
+      from.setDate(from.getDate() - 7);
+      break;
+    default:
+      from.setHours(from.getHours() - 24);
+  }
+  return { from, to, fromObj: from, toObj: to };
+}
+
+// 기간 길이에 따라 bucket 자동 선택
+function chooseBucket(from, to) {
+  const ms = to.getTime() - from.getTime();
+  const hours = ms / (1000 * 60 * 60);
+
+  if (hours <= 6) return "5m";
+  if (hours <= 24) return "10m";
+  if (hours <= 24 * 7) return "30m";
+  return "1h";
+}
+
+function formatRange(from, to, range) {
+  // “최근 24시간” 같은 문구를 우선 보여주고 싶으면 그냥 이거 리턴해도 됨
+  switch (range) {
+    case "1h":  return "최근 1시간";
+    case "6h":  return "최근 6시간";
+    case "24h": return "최근 24시간";
+    case "7d":  return "최근 7일";
+    default:    return `${from.toISOString()} ~ ${to.toISOString()}`;
+  }
+}
