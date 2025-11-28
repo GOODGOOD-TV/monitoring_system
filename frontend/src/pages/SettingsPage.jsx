@@ -1,4 +1,4 @@
-// src/pages/SettingsPage.jsx (또는 현재 SettingsPage 파일 경로)
+// src/pages/SettingsPage.jsx
 import React, { useEffect, useState } from "react";
 import { getSettings, saveSettings } from "../services/settings";
 import { api } from "../lib/api.js";
@@ -126,7 +126,7 @@ export default function SettingsPage() {
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
       <h1 style={{ fontSize: 22, fontWeight: 800 }}>내 계정 설정</h1>
 
-      {/* 프로필 정보 (읽기 전용) */}
+      {/* 프로필 + 연락처 정보 */}
       <Card>
         <SectionTitle>프로필 정보</SectionTitle>
         <Grid>
@@ -144,13 +144,7 @@ export default function SettingsPage() {
 
           <Label>역할</Label>
           <ReadOnlyValue>{formatRole(s.profile?.role)}</ReadOnlyValue>
-        </Grid>
-      </Card>
 
-      {/* 연락처 / 로그인 정보 */}
-      <Card>
-        <SectionTitle>연락처 및 로그인 정보</SectionTitle>
-        <Grid>
           <Label>전화번호</Label>
           <Input
             value={s.contact?.phone ?? ""}
@@ -168,6 +162,11 @@ export default function SettingsPage() {
         </Grid>
         <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
           로그인 및 알림 수신에 사용되는 이메일입니다.
+        </div>
+        <div style={{ textAlign: "right", marginTop: 12 }}>
+          <PrimaryButton onClick={onSave} disabled={saving}>
+            {saving ? "저장중…" : "프로필 설정 저장"}
+          </PrimaryButton>
         </div>
       </Card>
 
@@ -202,7 +201,7 @@ export default function SettingsPage() {
         </div>
         <div style={{ textAlign: "right", marginTop: 12 }}>
           <SecondaryButton onClick={onChangePassword} disabled={changingPw}>
-            {changingPw ? "변경 중…" : "비밀번호 변경"}
+            {changingPw ? "변경 중…" : "비밀번호 변경 저장"}
           </SecondaryButton>
         </div>
         {pwMsg && (
@@ -211,13 +210,6 @@ export default function SettingsPage() {
           </div>
         )}
       </Card>
-
-      {/* 연락처 저장 버튼 */}
-      <div style={{ textAlign: "right", marginTop: 16 }}>
-        <PrimaryButton onClick={onSave} disabled={saving}>
-          {saving ? "저장중…" : "연락처 설정 저장"}
-        </PrimaryButton>
-      </div>
     </div>
   );
 }
@@ -303,19 +295,19 @@ function ReadOnlyValue({ children }) {
 
 function PrimaryButton({ children, ...p }) {
   return (
-    <button
-      {...p}
-      style={{
-        padding: "8px 14px",
-        borderRadius: 8,
-        cursor: "pointer",
-        border: "1px solid #111",
-        background: "#111",
-        color: "#fff",
-      }}
-    >
-      {children}
-    </button>
+      <button
+        {...p}
+        style={{
+          padding: "8px 14px",
+          borderRadius: 8,
+          cursor: "pointer",
+          border: "1px solid #111",
+          background: "#111",
+          color: "#fff",
+        }}
+      >
+        {children}
+      </button>
   );
 }
 
