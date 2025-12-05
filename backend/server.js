@@ -13,7 +13,6 @@ import companiesRoute from './routes/companies.js';
 import areasRoute from './routes/areas.js';
 import sensorsRoute from './routes/sensors.js';
 import sensorDataRoute from './routes/sensor-data.js';
-import thresholdsRoute from './routes/thresholds.js';
 import alarmsRoute from './routes/alarms.js';
 import notificationsRoute from './routes/notifications.js';
 import sysLogsRoute from './routes/sys-logs.js';
@@ -35,7 +34,6 @@ app.use('/api/v1/areas', authGuard, areasRoute); //구역 정보
 app.use('/api/v1/companies', authGuard, companiesRoute); //회사 정보
 app.use('/api/v1/sensors', authGuard, sensorsRoute); //센서 정보
 app.use('/api/v1/sensor-data', authGuard, sensorDataRoute); //센서 데이터
-app.use('/api/v1/thresholds', authGuard, thresholdsRoute); //임계값 정보
 app.use('/api/v1/alarms', authGuard, alarmsRoute); //알람 정보
 app.use('/api/v1/notifications', authGuard, notificationsRoute); //알람 발송
 app.use('/api/v1/sys-logs', authGuard, sysLogsRoute); //시스템 로그

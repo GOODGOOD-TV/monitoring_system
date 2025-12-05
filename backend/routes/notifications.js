@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../libs/db.js';
 import { mustRole } from '../middlewares/mustRole.js';
+import { dispatchNotificationById } from '../services/notificationService.js';
 
 const router = Router();
 
@@ -31,19 +32,15 @@ router.get('/', async (req, res) => {
   const [[{ cnt }]] = await pool.query(
     `SELECT COUNT(*) cnt
        FROM notification nt
-       JOIN alarm a ON a.id = nt.alarm_id
-       JOIN sensor s ON s.id = a.sensor_id
-      WHERE s.company_id = :company_id`,
+      WHERE nt.company_id = :company_id`,
     { company_id }
   );
 
   const [rows] = await pool.query(
-    `SELECT nt.id, s.company_id, nt.alarm_id, nt.channel, nt.target_id, nt.status,
+    `SELECT nt.id, nt.company_id, nt.alarm_id, nt.channel, nt.target_id, nt.status,
             nt.message, nt.payload, nt.created_at, nt.sent_at
        FROM notification nt
-       JOIN alarm a ON a.id = nt.alarm_id
-       JOIN sensor s ON s.id = a.sensor_id
-      WHERE s.company_id = :company_id
+      WHERE nt.company_id = :company_id
       ${orderSql}
       LIMIT :size OFFSET :offset`,
     { company_id, size, offset }
@@ -57,7 +54,7 @@ router.get('/', async (req, res) => {
   });
 });
 
-/** POST /api/v1/notifications  (admin/manager) */
+/** POST /api/v1/notifications */
 router.post('/', mustRole('admin', 'manager'), async (req, res) => {
   const company_id = req.company_id;
   const { alarm_id, channel, target_id, payload = null, message = null } = req.body ?? {};
@@ -66,54 +63,44 @@ router.post('/', mustRole('admin', 'manager'), async (req, res) => {
     return res.fail(400, 'INVALID_REQUEST_BODY', 'alarm_id/channel/target_id 필수');
   }
 
-  // 알람 소유권
-  const [own] = await pool.query(
-    `SELECT a.id
-       FROM alarm a
-       JOIN sensor s ON s.id = a.sensor_id
-      WHERE a.id=:alarm_id AND s.company_id=:company_id`,
-    { alarm_id, company_id }
-  );
-  if (!own.length) return res.fail(404, 'NOT_FOUND', '알람 없음');
-
-  // 타깃 사용자 회사 일치
-  const [usr] = await pool.query(
-    `SELECT id FROM users WHERE id=:target_id AND company_id=:company_id AND deleted_at IS NULL`,
-    { target_id, company_id }
-  );
-  if (!usr.length) return res.fail(403, 'FORBIDDEN', '타깃 사용자 범위 외');
+  // payload 반드시 string 처리
+  const payloadJson = payload ? JSON.stringify(payload) : null;
 
   const [r1] = await pool.query(
-    `INSERT INTO notification (alarm_id, channel, target_id, status, message, payload)
-     VALUES (:alarm_id, :channel, :target_id, 'PENDING', :message, :payload)`,
-    { alarm_id, channel, target_id, message, payload }
+    `INSERT INTO notification
+        (company_id, alarm_id, channel, target_id, status, message, payload)
+     VALUES
+        (:company_id, :alarm_id, :channel, :target_id, 'PENDING', :message, :payload)`,
+    { company_id, alarm_id, channel, target_id, message, payload: payloadJson }
   );
 
-  const [row] = await pool.query(
-    `SELECT id, alarm_id, channel, target_id, status, payload, created_at, sent_at
-       FROM notification WHERE id=:id`,
-    { id: r1.insertId }
+  const id = r1.insertId;
+
+  // 즉시 전송시도
+  await dispatchNotificationById(id);
+
+  const [[row]] = await pool.query(
+    `SELECT id, company_id, alarm_id, channel, target_id, status, message, payload, created_at, sent_at
+       FROM notification WHERE id = :id`,
+    { id }
   );
 
   return res.status(202).json({
     is_sucsess: true,
-    message: '알림 전송 요청 접수',
-    data: row[0]
+    message: '알림 전송 요청 접수 및 발송 시도',
+    data: row
   });
 });
 
-/** POST /api/v1/notifications/:id/retry  (admin/manager) */
+/** POST /api/v1/notifications/:id/retry */
 router.post('/:id/retry', mustRole('admin', 'manager'), async (req, res) => {
   const id = +req.params.id;
   const company_id = req.company_id;
 
-  // 회사 소유 검증
   const [own] = await pool.query(
     `SELECT nt.id
        FROM notification nt
-       JOIN alarm a ON a.id = nt.alarm_id
-       JOIN sensor s ON s.id = a.sensor_id
-      WHERE nt.id=:id AND s.company_id=:company_id`,
+      WHERE nt.id = :id AND nt.company_id = :company_id`,
     { id, company_id }
   );
   if (!own.length) return res.fail(404, 'NOT_FOUND', '알림 없음');
@@ -123,7 +110,15 @@ router.post('/:id/retry', mustRole('admin', 'manager'), async (req, res) => {
     { id }
   );
 
-  return res.ok({ id, status: 'PENDING' }, '알림 재전송 요청 접수');
+  await dispatchNotificationById(id);
+
+  const [[row]] = await pool.query(
+    `SELECT id, company_id, alarm_id, channel, target_id, status, message, payload, created_at, sent_at
+       FROM notification WHERE id=:id`,
+    { id }
+  );
+
+  return res.ok(row, '알림 재전송 완료');
 });
 
 export default router;

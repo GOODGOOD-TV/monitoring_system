@@ -1,4 +1,5 @@
 import { pool } from './db.js';
+import { createAndDispatchForAlarm } from '../services/notificationService.js';
 
 const ALARM_COOLDOWN_SEC = +(process.env.ALARM_COOLDOWN_SEC ?? 60);
 function nowUtcSql() { return 'UTC_TIMESTAMP()'; }
@@ -128,7 +129,11 @@ export async function processSensorReading(
     );
     const alarm_id = ar.insertId;
 
+    // 여기서 자동 알림 호출
+    await createAndDispatchForAlarm(conn, alarm_id, sensor.company_id);
+
     return { effect: 'ALARM_CREATED', alarm_id, direction };
+
   }
 
   // 정상값 → 자동 해제 기능 제거
