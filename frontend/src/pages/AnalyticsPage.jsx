@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { api, getAccessToken } from "../lib/api.js";
+import { api, getAccessToken, API_BASE } from "../lib/api.js";
 
 function typeSymbol(type) {
   if (type === "temperature") return "℃";
@@ -162,6 +162,7 @@ export default function AnalyticsPage() {
       setReportErr("센서를 선택하세요.");
       return;
     }
+
     if (!getAccessToken()) {
       window.location.assign("/login");
       return;
@@ -176,19 +177,17 @@ export default function AnalyticsPage() {
         sensor_id: String(reportSensorId),
         hours: String(reportHours),
       });
-      // 보고서 이름을 백엔드에서 받도록 구현했다면 여기에 추가
       if (reportName.trim()) {
         q.append("name", reportName.trim());
       }
 
-      const res = await api(`/api/v1/analytics/sensor-report?${q.toString()}`);
+      // 같은 도메인 / 쿠키 기반 인증이면 그냥 window.open 으로 충분
+      const url = `${API_BASE}/api/v1/analytics/sensor-report/pdf?${q.toString()}`;
+      window.open(url, "_blank");   // 새 탭에서 열리거나 바로 다운로드
 
-      if (!res?.is_sucsess) {
-        throw new Error(res?.message || "보고서 생성 실패");
-      }
-
-      // 이메일 전송까지 백엔드에서 처리한다고 가정
-      setReportMsg("보고서가 생성되어 이메일로 전송되었습니다.");
+      setReportMsg("보고서 PDF가 다운로드(또는 새 창)로 열렸습니다.");
+      // 바로 닫고 싶으면:
+      // setReportModalOpen(false);
     } catch (e) {
       setReportErr(e.message || String(e));
     } finally {

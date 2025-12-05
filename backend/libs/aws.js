@@ -1,21 +1,13 @@
-// backend/libs/aws.js
 import { SNSClient } from "@aws-sdk/client-sns";
 import { SESClient } from "@aws-sdk/client-ses";
 
-const region = process.env.AWS_REGION ?? "ap-northeast-2";
+const snsRegion = process.env.AWS_REGION_SNS ?? "us-east-1";
+const sesRegion = process.env.AWS_REGION_SES ?? "ap-northeast-2";
 
-export const snsClient = new SNSClient({
-  region,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+const credentials = {
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+};
 
-export const sesClient = new SESClient({
-  region,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+export const snsClient = new SNSClient({ region: snsRegion, credentials });
+export const sesClient = new SESClient({ region: sesRegion, credentials });
