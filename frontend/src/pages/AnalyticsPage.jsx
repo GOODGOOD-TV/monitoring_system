@@ -162,8 +162,8 @@ export default function AnalyticsPage() {
       setReportErr("센서를 선택하세요.");
       return;
     }
-
-    if (!getAccessToken()) {
+    const token = getAccessToken();
+    if (!token) {
       window.location.assign("/login");
       return;
     }
@@ -181,12 +181,41 @@ export default function AnalyticsPage() {
         q.append("name", reportName.trim());
       }
 
-      // 같은 도메인 / 쿠키 기반 인증이면 그냥 window.open 으로 충분
       const url = `${API_BASE}/api/v1/analytics/sensor-report/pdf?${q.toString()}`;
-      window.open(url, "_blank");   // 새 탭에서 열리거나 바로 다운로드
 
-      setReportMsg("보고서 PDF가 다운로드(또는 새 창)로 열렸습니다.");
-      // 바로 닫고 싶으면:
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include", // refresh 쿠키 같이
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        setReportErr("세션이 만료되었습니다. 다시 로그인하세요.");
+        return;
+      }
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`보고서 생성 실패: ${txt}`);
+      }
+
+      const blob = await res.blob();
+      const dlName =
+        reportName.trim() ||
+        `sensor-${reportSensorId}-report-${reportHours}h.pdf`;
+
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = dlName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+
+      setReportMsg("보고서 PDF가 다운로드되었습니다.");
+      // 필요하면 모달 닫기
       // setReportModalOpen(false);
     } catch (e) {
       setReportErr(e.message || String(e));

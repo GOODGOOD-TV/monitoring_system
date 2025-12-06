@@ -42,9 +42,31 @@ Sentory.sql 이용
 
 ### 3. 백엔드 실행
 ```bash
+npm install
 npm run dev
 ```
+.env 파일 설정
+```
+# 리전 분리
+AWS_REGION_SNS=us-east-1        # SMS: 버지니아
+AWS_REGION_SES=ap-northeast-2   # SES: 서울 (지금 이메일 인증한 리전)
+# 자격 증명
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+# 이메일 발신자
+ALERT_EMAIL_FROM=
+
+```
 서버: [http://localhost:3000](http://localhost:3000)
+
+---
+
+### 4. 프론트엔드 실행
+```bash
+npm install
+npm run dev
+```
+서버: [http://localhost:5173](http://localhost:5173)
 
 ---
 
