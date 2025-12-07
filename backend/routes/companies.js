@@ -94,7 +94,7 @@ router.patch('/:companyId', mustRole('admin'), async (req, res) => {
     { id, name, is_active }
   );
 
-  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '회사 없음');
+  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND_c', '회사 없음');
 
   const [row] = await pool.query(
     `SELECT id, name, is_active, created_at, deleted_at FROM company WHERE id=:id`,
@@ -125,7 +125,7 @@ router.delete('/:companyId', mustRole('admin'), async (req, res) => {
     );
     if (!cmp) {
       await conn.rollback();
-      return res.fail(404, 'NOT_FOUND', '이미 삭제되었거나 존재하지 않음');
+      return res.fail(404, 'NOT_FOUND_c', '이미 삭제되었거나 존재하지 않음');
     }
 
     // 1) 회사 soft delete

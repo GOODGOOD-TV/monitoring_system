@@ -72,7 +72,7 @@ router.post('/:alarmId/resolve', mustRole('admin', 'manager'), async (req, res) 
     { id, uid, company_id }
   );
 
-  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '알람 없음');
+  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND_n', '알람 없음');
 
   const [row] = await pool.query(
     `SELECT id, resolved_at, resolved_by FROM alarm WHERE id=:id`,

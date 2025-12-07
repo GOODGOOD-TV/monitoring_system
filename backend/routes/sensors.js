@@ -90,7 +90,7 @@ router.get('/:sensorId', async (req, res) => {
     { id, company_id }
   );
 
-  if (!rows.length) return res.fail(404, 'NOT_FOUND', '센서 없음');
+  if (!rows.length) return res.fail(404, 'NOT_FOUND_s', '센서 없음');
 
   return res.ok(rows[0], '센서 조회 성공');
 });
@@ -115,7 +115,7 @@ router.get('/:sensorId/data', async (req, res) => {
         AND deleted_at IS NULL`,
     { id, company_id }
   );
-  if (!sensorRows.length) return res.fail(404, 'NOT_FOUND', '센서 없음');
+  if (!sensorRows.length) return res.fail(404, 'NOT_FOUND_s', '센서 없음');
 
   const [rows] = await pool.query(
     `SELECT sensor_id,
@@ -251,7 +251,7 @@ router.patch('/:sensorId', mustRole('admin', 'manager'), async (req, res) => {
     }
   );
 
-  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '센서 없음');
+  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND_s', '센서 없음');
 
   const [row] = await pool.query(
     `SELECT id,

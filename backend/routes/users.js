@@ -35,7 +35,7 @@ router.get('/me', async (req, res) => {
     { id }
   );
 
-  if (!rows.length) return res.fail(404, 'NOT_FOUND', '사용자 없음');
+  if (!rows.length) return res.fail(404, 'NOT_FOUND_u', '사용자 없음');
 
   return res.status(200).json({
     is_sucsess: true,
@@ -82,7 +82,7 @@ router.patch('/me', async (req, res) => {
     { id, company_id, name, phone, email, is_active }
   );
 
-  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '사용자 없음');
+  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND_u', '사용자 없음');
 
   const [row] = await pool.query(
     `
@@ -136,7 +136,7 @@ router.patch('/me/password', mustRole('user', 'manager', 'admin'), async (req, r
         LIMIT 1`,
       { id, company_id }
     );
-    if (!rows.length) return res.fail(404, 'NOT_FOUND', '사용자 없음');
+    if (!rows.length) return res.fail(404, 'NOT_FOUND_u', '사용자 없음');
 
     const { password_hash } = rows[0];
 
@@ -159,7 +159,7 @@ router.patch('/me/password', mustRole('user', 'manager', 'admin'), async (req, r
         WHERE id=:id AND company_id=:company_id AND deleted_at IS NULL`,
       { id, company_id, new_hash }
     );
-    if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '사용자 없음');
+    if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND_u', '사용자 없음');
 
     return res.status(200).json({
       is_sucsess: true,
@@ -262,7 +262,7 @@ router.patch('/:userId', mustRole('admin'), async (req, res) => {
     { id, company_id, name, phone, role, is_active }
   );
 
-  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '사용자 없음');
+  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND_u', '사용자 없음');
 
   const [row] = await pool.query(
     `SELECT id, name, phone, role, is_active, updated_at FROM users WHERE id=:id`,

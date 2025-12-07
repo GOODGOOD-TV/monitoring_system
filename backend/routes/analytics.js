@@ -346,7 +346,7 @@ router.get('/sensor-forecast', async (req, res) => {
       [sensor_id, company_id]
     );
     if (!sensor) {
-      return res.fail(404, 'NOT_FOUND', '센서 없음');
+      return res.fail(404, 'NOT_FOUND_s', '센서 없음');
     }
 
     // 이 센서의 전체 데이터(혹은 최근 N일) 조회

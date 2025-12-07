@@ -103,7 +103,7 @@ router.post('/:id/retry', mustRole('admin', 'manager'), async (req, res) => {
       WHERE nt.id = :id AND nt.company_id = :company_id`,
     { id, company_id }
   );
-  if (!own.length) return res.fail(404, 'NOT_FOUND', '알림 없음');
+  if (!own.length) return res.fail(404, 'NOT_FOUND_n', '알림 없음');
 
   await pool.query(
     `UPDATE notification SET status='PENDING', sent_at=NULL WHERE id=:id`,

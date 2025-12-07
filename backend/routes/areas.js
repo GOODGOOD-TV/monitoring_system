@@ -26,7 +26,7 @@ router.get("/:areaId", async (req, res) => {
   );
 
   if (rows.length === 0) {
-    return res.fail(404, "NOT_FOUND", "구역 없음");
+    return res.fail(404, "NOT_FOUND_a", "구역 없음");
   }
 
   return res.ok(rows[0], "구역 조회 성공");
@@ -104,7 +104,7 @@ router.patch('/:areaId', mustRole('admin', 'manager'), async (req, res) => {
     { id, company_id, area_name, is_active }
   );
 
-  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND', '구역 없음');
+  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND_a', '구역 없음');
 
   const [row] = await pool.query(
     `SELECT id, area_name, is_active, created_at, deleted_at FROM area WHERE id=:id`,

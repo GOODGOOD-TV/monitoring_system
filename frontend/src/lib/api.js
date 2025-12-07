@@ -4,7 +4,7 @@
 // 예)
 //  - 로컬:  http://localhost:3000/api/v1
 //  - EC2:   /api/v1
-export const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+export const API_BASE = import.meta.env.VITE_API_BASE ?? "/api/v1";
 
 // 토큰 읽기
 export function getAccessToken() {

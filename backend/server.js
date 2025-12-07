@@ -42,7 +42,7 @@ app.use('/api/v1/sensor-data', authGuard, sensorIngestRoute); //센서 -> 알람
 app.use('/api/v1/analytics', authGuard, analyticsRoute); //분석 및 이상예측
 
 // 404
-app.use((req, res) => res.fail(404, 'NOT_FOUND', 'Not Found'));
+app.use((req, res) => res.fail(404, 'NOT_FOUND_p', 'Not Found'));
 
 // 500
 app.use((err, _req, res, _next) => {
