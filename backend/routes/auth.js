@@ -22,7 +22,7 @@ r.post('/register', async (req, res) => {
     { company_name }
   );
   if (!company.length)
-    return res.fail(404, 'NOT_FOUND', '존재하지 않는 company_code');
+    return res.fail(404, 'NOT_FOUND_COMP', '존재하지 않는 company_code');
 
   const company_id = company[0].id;
 
