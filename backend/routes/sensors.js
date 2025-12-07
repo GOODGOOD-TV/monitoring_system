@@ -16,12 +16,19 @@ router.get('/', async (req, res) => {
   const orderSql = buildOrderBy(
     req.query.sort,
     ['created_at', 'model', 'sensor_type'],
-    'created_at DESC'
+    'is_active DESC, created_at DESC'  // 🔹 활성 먼저 정렬
   );
 
   const area_id = req.query.area_id ? parseInt(req.query.area_id, 10) : null;
+  const show = (req.query.show || 'active').toLowerCase();  
+  // active | all
 
-  let where = 'company_id=:company_id AND deleted_at IS NULL';
+  let where = `
+    company_id=:company_id 
+    AND deleted_at IS NULL
+    ${show === 'active' ? 'AND is_active = 1' : ''}
+  `;
+
   const params = { company_id, size, offset };
 
   if (Number.isInteger(area_id)) {
@@ -62,6 +69,7 @@ router.get('/', async (req, res) => {
     meta: { page, size, total: cnt }
   });
 });
+
 
 /** GET /api/v1/sensors/:sensorId - 센서 한 개 조회 */
 router.get('/:sensorId', async (req, res) => {

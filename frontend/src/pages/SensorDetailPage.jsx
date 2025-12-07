@@ -18,12 +18,12 @@ function formatDateTime(value) {
 
 export default function SensorDetailPage() {
   const navigate = useNavigate();
-  const { areaId, sensorId } = useParams(); // /zones/:areaId/sensors/:sensorId
+  const { zoneId, sensorId } = useParams(); // /zones/:zoneId/sensors/:sensorId
   const location = useLocation();
 
   const areaName =
     (location.state && location.state.areaName) ||
-    (areaId ? `Area ${areaId}` : "구역");
+    (zoneId ? `Area ${zoneId}` : "구역");
 
   const [sensor, setSensor] = useState(null);
   const [dataList, setDataList] = useState([]);
@@ -77,7 +77,7 @@ export default function SensorDetailPage() {
   const unit = getUnit(sensor?.sensor_type);
 
   const handleEditClick = () => {
-    navigate(`/zones/${areaId}/sensors/${sensorId}/edit`, {
+    navigate(`/zones/${zoneId}/sensors/${sensorId}/edit`, {
       state: { areaName },
     });
   };
@@ -92,6 +92,7 @@ export default function SensorDetailPage() {
       });
       setSensor((prev) => (prev ? { ...prev, is_active: 0 } : prev));
       alert("센서를 비활성화했습니다.");
+      navigate(`/zones/${zoneId}`, { replace: true });
     } catch (e) {
       alert(e?.message || "센서를 비활성화하지 못했습니다.");
     }

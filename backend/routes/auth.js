@@ -2,46 +2,59 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool } from '../libs/db.js';
 import { signAccess, signRefresh, verifyRefresh, ACCESS_EXP_SEC, REFRESH_EXP_SEC } from '../libs/jwt.js';
-
+import { toE164Korean } from '../libs/phone.js';
 const r = Router();
-function validatePhone(phone) {
-  // 010-1234-5678 또는 01012345678
-  const re = /^01[016789]-?\d{3,4}-?\d{4}$/;
-  return re.test(phone);
-}
 /**
  * POST /api/v1/auth/register
  * body: { email, password, name }
  * 비밀번호 해시 저장. 기본 role=user, company_id는 임시로 1 (초기 부트스트랩 단계).
  * 운영에서는 관리자만 사용자 생성하도록 별도 /users 로 분리 가능.
  */
-
 r.post('/register', async (req, res) => {
   const { company_name, email, password, name, phone, employee_id } = req.body ?? {};
-  if (!validatePhone(phone)) {
-    return res.badRequest(400, '전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)');
-  }
+
   if (!company_name || !email || !password || !name || !phone || !employee_id) {
-    return res.fail(400, 'INVALID_REQUEST_BODY',  'company_name/email/password/name/phone/employee_id 필수');
+    return res.fail(400, 'INVALID_REQUEST_BODY', 'company_name/email/password/name/phone/employee_id 필수');
   }
+
   const [company] = await pool.query(
     'SELECT id FROM company WHERE name=:company_name AND deleted_at IS NULL',
     { company_name }
   );
-  if (!company.length)
+  if (!company.length) {
     return res.fail(404, 'NOT_FOUND_c', '존재하지 않는 company_code');
-
+  }
   const company_id = company[0].id;
 
-  const [dup] = await pool.query('SELECT id FROM users WHERE email=:email AND deleted_at IS NULL', { email });
-  if (dup.length) return res.fail(409, 'CONFLICT', '이미 존재하는 이메일');
+  const [dup] = await pool.query(
+    'SELECT id FROM users WHERE email=:email AND deleted_at IS NULL',
+    { email }
+  );
+  if (dup.length) {
+    return res.fail(409, 'CONFLICT', '이미 존재하는 이메일');
+  }
+
+  // 🔹 여기서 이상한 번호들을 전부 걸러냄
+  let phoneE164;
+  try {
+    phoneE164 = toE164Korean(phone); // 010..., +8210..., 둘 다 지원
+  } catch (e) {
+    return res.fail(400, 'INVALID_PHONE', e.message || '전화번호 형식이 올바르지 않습니다.');
+  }
 
   const hash = await bcrypt.hash(password, 10);
 
   await pool.query(
-    `INSERT INTO users (company_id, employee_id, name, phone, email, password_hash, role, is_active) VALUES (:company_id, :employee_id, :name, :phone, :email, :hash, 'user', 1)`,
-    { company_id, employee_id, name, phone, email, hash }
+    `
+    INSERT INTO users (
+      company_id, employee_id, name, phone, email, password_hash, role, is_active
+    ) VALUES (
+      :company_id, :employee_id, :name, :phone, :email, :hash, 'user', 1
+    )
+    `,
+    { company_id, employee_id, name, phone: phoneE164, email, hash }
   );
+
   return res.ok({}, '회원가입 성공');
 });
 

@@ -20,7 +20,18 @@ export default function ZonesPage() {
     setErr("");
     try {
       const list = await getZones();
-      setZones(list);
+
+      // 🔹 응답 형태 정규화: name / is_active만 맞춰놓고 쓰기
+      const adapted = (list ?? []).map((z) => ({
+        id: z.id,
+        name: z.name ?? z.area_name ?? z.areaName ?? "-",
+        is_active:
+          z.is_active ??
+          z.isActive ??
+          1, // 백엔드에서 안 내려오면 기본 활성
+      }));
+
+      setZones(adapted);
     } catch (e) {
       setErr(e.message || String(e));
     } finally {
@@ -38,6 +49,7 @@ export default function ZonesPage() {
 
     setAdding(true);
     try {
+      // services/zones 쪽에서 { name }을 area_name으로 매핑한다고 가정
       await createZone({ name: newName.trim() });
       setNewName("");
       setShowAdd(false);
@@ -121,15 +133,44 @@ export default function ZonesPage() {
             justifyContent: "center",
           }}
         >
-          {zones.map((z) => (
-            <button
-              key={z.id}
-              onClick={() => navigate(`/zones/${z.id}`)}
-              style={tileBtn}
-            >
-              {z.name}
-            </button>
-          ))}
+          {zones.map((z) => {
+            const inactive = !z.is_active;
+
+            return (
+              <button
+                key={z.id}
+                onClick={() => navigate(`/zones/${z.id}`)}
+                style={{
+                  ...tileBtn,
+                  opacity: inactive ? 0.4 : 1, // 🔹 비활성 회색
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <span>{z.name}</span>
+                  {inactive && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        padding: "2px 6px",
+                        borderRadius: 999,
+                        background: "#f3f4f6",
+                        color: "#6b7280",
+                      }}
+                    >
+                      비활성
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
 
           {/* 🔥 구역 추가 버튼 */}
           {!showAdd && (

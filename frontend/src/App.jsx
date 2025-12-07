@@ -16,6 +16,7 @@ import SensorEditPage from "./pages/SensorEditPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
+import ZoneEditPage from "./pages/ZoneEditPage.jsx";
 
 export default function App() {
   return (
@@ -38,14 +39,9 @@ export default function App() {
             <Route path="/analytics"  element={<AnalyticsPage />} />
             <Route path="/zones"      element={<ZonesPage />} />
             <Route path="/zones/:zoneId" element={<ZoneSensorsPage />} />
-            <Route
-              path="/zones/:zoneId/sensors/:sensorId"
-              element={<SensorDetailPage />}
-            />
-            <Route
-              path="/zones/:zoneId/sensors/:sensorId/edit"
-              element={<SensorEditPage />}
-            />
+            <Route path="/zones/:zoneId/sensors/:sensorId" element={<SensorDetailPage />} />
+            <Route path="/zones/:zoneId/sensors/:sensorId/edit" element={<SensorEditPage />} />
+            <Route path="/zones/:zoneId/edit" element={<ZoneEditPage />} />
             <Route path="/settings"   element={<SettingsPage />} />
           </Route>
 

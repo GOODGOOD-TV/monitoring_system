@@ -22,16 +22,24 @@ export default function MonitoringPage() {
     setLoading(true);
     setError("");
     try {
-      const list = await api(
-        `/sensors?${new URLSearchParams({ page, size })}`
-      );
+      const params = new URLSearchParams({
+        page: String(page),
+        size: String(size),
+        show: "active",          // 🔹 활성 센서만
+      });
+
+      const list = await api(`/sensors?${params.toString()}`);
       if (!list?.is_sucsess) throw new Error(list?.message || "API 실패");
 
-      const adapted = (list.data ?? []).map((s) => {
+      // 🔹 혹시라도 백엔드에서 섞어서 내려오면 프론트에서도 한 번 더 필터
+      const raw = (list.data ?? []).filter(
+        (s) => s.is_active === 1 || s.is_active === true || s.is_active === undefined
+      );
+
+      const adapted = raw.map((s) => {
         const type = String(s.sensor_type || "").toLowerCase(); // 'temperature' | 'humidity'
         const unit = type === "humidity" ? "%" : "°C";
 
-        // 백엔드 스키마에 따라 여러 케이스 대비
         const thresholdMin =
           s.threshold_min ??
           s.thresholdMin ??
@@ -45,13 +53,12 @@ export default function MonitoringPage() {
 
         return {
           id: s.id,
-          area: s.area_name ?? s.area?.name ?? "-",
+          area: s.area_name ?? s.area?.name ?? "-", // 백엔드에서 join해서 보내주면 그대로 사용
           name: s.name ?? s.model ?? "-",
           type,
           unit,
-          value: null, // 최신값은 폴링으로 채움
+          value: null,
           lastAt: null,
-          // alert는 "현재값 vs 임계값" 기준으로만 계산하므로 초기에는 false
           alert: false,
           thresholdMin,
           thresholdMax,
@@ -67,6 +74,7 @@ export default function MonitoringPage() {
       setLoading(false);
     }
   }, [page, size]);
+
 
   // 페이지/사이즈 바뀔 때마다 목록 다시 조회
   useEffect(() => {

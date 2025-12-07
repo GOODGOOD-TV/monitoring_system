@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../libs/db.js';
 import bcrypt from 'bcrypt';
 import { mustRole } from '../middlewares/mustRole.js';
+import { toE164Korean } from '../libs/phone.js';
 
 const router = Router();
 
@@ -53,7 +54,7 @@ router.patch('/me', async (req, res) => {
   const company_id = req.company_id;
   const id = req.user?.id;
 
-  const {
+  let {
     name = null,
     phone = null,
     email = null,
@@ -62,18 +63,26 @@ router.patch('/me', async (req, res) => {
 
   if (!id) return res.fail(401, 'UNAUTHORIZED', '토큰 없음');
 
-  // 아무것도 안 들어오면 에러
   if ([name, phone, email, is_active].every(v => v === null)) {
     return res.fail(400, 'EMPTY_UPDATE', '변경할 필드가 없습니다');
+  }
+
+  // 🔹 phone이 포함된 경우만 변환/검증
+  if (phone !== null) {
+    try {
+      phone = toE164Korean(phone);
+    } catch (e) {
+      return res.fail(400, 'INVALID_PHONE', e.message || '전화번호 형식이 올바르지 않습니다.');
+    }
   }
 
   const [r1] = await pool.query(
     `
     UPDATE users
-      SET name      = COALESCE(:name, name),
-          phone     = COALESCE(:phone, phone),
-          email     = COALESCE(:email, email),
-          is_active = COALESCE(:is_active, is_active),
+      SET name       = COALESCE(:name, name),
+          phone      = COALESCE(:phone, phone),
+          email      = COALESCE(:email, email),
+          is_active  = COALESCE(:is_active, is_active),
           updated_at = UTC_TIMESTAMP()
       WHERE id = :id
         AND company_id = :company_id
@@ -82,7 +91,9 @@ router.patch('/me', async (req, res) => {
     { id, company_id, name, phone, email, is_active }
   );
 
-  if (!r1.affectedRows) return res.fail(404, 'NOT_FOUND_u', '사용자 없음');
+  if (!r1.affectedRows) {
+    return res.fail(404, 'NOT_FOUND_u', '사용자 없음');
+  }
 
   const [row] = await pool.query(
     `

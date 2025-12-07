@@ -81,3 +81,18 @@ export async function createZone({ name }) {
     createdAt: a.created_at,
   };
 }
+
+export async function updateZone(id, body) {
+  const res = await api(`/areas/${id}`, {
+    method: "PATCH",
+    body,
+  });
+  return res.data;
+}
+
+export async function deleteZone(id) {
+  const res = await api(`/areas/${id}`, {
+    method: "DELETE",
+  });
+  return res.data;
+}

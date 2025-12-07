@@ -1,7 +1,7 @@
 // src/pages/SettingsPage.jsx
 import React, { useEffect, useState } from "react";
 import { getSettings, saveSettings } from "../services/settings";
-import { api, API_BASE } from "../lib/api.js";
+import { api } from "../lib/api.js";
 
 /** 날짜 문자열을 YYYY-MM-DD 형태로 변환 */
 function formatDate(value) {
@@ -10,9 +10,25 @@ function formatDate(value) {
   return String(value).slice(0, 10);
 }
 
+/** 프론트용 간단 전화번호 검증 (010-xxxx-xxxx / 010xxxxxxxx / +8210xxxxxxxx) */
+function isValidPhoneInput(raw) {
+  if (!raw) return false;
+  const s = String(raw).trim();
+
+  // +8210xxxxxxxx 형태 허용
+  if (s.startsWith("+")) {
+    return /^\+8210\d{8}$/.test(s);
+  }
+
+  // 로컬 포맷: 숫자만 뽑아서 010 + 8자리인지 확인
+  const digits = s.replace(/\D/g, "");
+  return /^010\d{8}$/.test(digits);
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [loadError, setLoadError] = useState("");
 
   // 비밀번호 변경용 상태
@@ -67,10 +83,32 @@ export default function SettingsPage() {
   };
 
   const onSave = async () => {
+    setSaveError("");
     setSaving(true);
-    await saveSettings(settings);
-    setSaving(false);
-    alert("저장되었습니다.");
+
+    // 1) 프론트에서 전화번호 기본 형식 체크
+    const phone = s.contact?.phone ?? "";
+    if (!isValidPhoneInput(phone)) {
+      setSaving(false);
+      setSaveError("전화번호 형식이 올바르지 않습니다. 예) 010-1234-5678 또는 +821012341234");
+      return;
+    }
+
+    try {
+      await saveSettings(settings);
+      alert("저장되었습니다.");
+    } catch (err) {
+      console.error("saveSettings error:", err);
+      // 백엔드 에러 메시지 우선 사용
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "설정 저장 중 오류가 발생했습니다.";
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onChangePwField = (field, value) => {
@@ -109,7 +147,12 @@ export default function SettingsPage() {
       setPasswords({ current: "", next: "", confirm: "" });
     } catch (e) {
       console.error("change password error:", e);
-      setPwMsg(e.message || "비밀번호 변경 중 오류가 발생했습니다.");
+      const msg =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        e.message ||
+        "비밀번호 변경 중 오류가 발생했습니다.";
+      setPwMsg(msg);
     } finally {
       setChangingPw(false);
     }
@@ -163,6 +206,11 @@ export default function SettingsPage() {
         <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
           로그인 및 알림 수신에 사용되는 이메일입니다.
         </div>
+        {saveError && (
+          <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c" }}>
+            {saveError}
+          </div>
+        )}
         <div style={{ textAlign: "right", marginTop: 12 }}>
           <PrimaryButton onClick={onSave} disabled={saving}>
             {saving ? "저장중…" : "프로필 설정 저장"}
@@ -199,7 +247,7 @@ export default function SettingsPage() {
         <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
           영문, 숫자, 특수문자를 포함해 8자 이상으로 설정하는 것을 권장합니다.
         </div>
-        <div style={{ textAlign: "right", marginTop: 12 }}>
+        <div style={{ text_align: "right", marginTop: 12 }}>
           <SecondaryButton onClick={onChangePassword} disabled={changingPw}>
             {changingPw ? "변경 중…" : "비밀번호 변경 저장"}
           </SecondaryButton>
@@ -295,19 +343,19 @@ function ReadOnlyValue({ children }) {
 
 function PrimaryButton({ children, ...p }) {
   return (
-      <button
-        {...p}
-        style={{
-          padding: "8px 14px",
-          borderRadius: 8,
-          cursor: "pointer",
-          border: "1px solid #111",
-          background: "#111",
-          color: "#fff",
-        }}
-      >
-        {children}
-      </button>
+    <button
+      {...p}
+      style={{
+        padding: "8px 14px",
+        borderRadius: 8,
+        cursor: "pointer",
+        border: "1px solid #111",
+        background: "#111",
+        color: "#fff",
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
