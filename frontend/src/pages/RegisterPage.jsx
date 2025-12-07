@@ -64,7 +64,7 @@ export default function RegisterPage() {
         "password": form.password
       };
 
-      await api("http://localhost:3000/api/v1/auth/register", { method: "POST", body });
+      await api("/auth/register", { method: "POST", body });
 
       setMsg("회원가입 완료! 로그인 화면으로 이동합니다.");
       setTimeout(() => window.location.assign(AFTER_SIGNUP_PATH), 700);

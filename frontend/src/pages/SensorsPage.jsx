@@ -12,7 +12,7 @@ export default function SensorsPage() {
 
   const [sort, setSort] = useState("created_at DESC");
 
-  const baseHost = import.meta.env.VITE_API_BASE ?? "http://localhost:3000";
+  const baseHost =  import.meta?.env?.VITE_API_BASE || "";
   const navigate = useNavigate(); 
 
   const url = useMemo(() => {
@@ -21,7 +21,7 @@ export default function SensorsPage() {
       size: String(size),
       sort,
     });
-    return `${baseHost}/api/v1/sensors?${qs.toString()}`;
+    return `${baseHost}/sensors?${qs.toString()}`;
   }, [baseHost, page, size, sort]);
 
   async function load() {
@@ -32,7 +32,7 @@ export default function SensorsPage() {
       if (!getAccessToken()) { window.location.assign("/login"); return; }
 
       // api()는 credentials: "include" + 401→refresh까지 처리
-      const json = await api(`/api/v1/sensors?${new URLSearchParams({ page, size, sort })}`);
+      const json = await api(`/sensors?${new URLSearchParams({ page, size, sort })}`);
       
       if (!json?.is_sucsess) throw new Error(json?.message || "API 실패");
 

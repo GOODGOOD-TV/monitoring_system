@@ -65,7 +65,7 @@ export default function LoginPage() {
 
   const refreshAccessToken = async () => {
     try {
-      const res = await api("http://localhost:3000/api/v1/auth/refresh", { method: "POST", auth: false });
+      const res = await api("/auth/refresh", { method: "POST", auth: false });
       const { access_token, expires_in } = res?.data || {};
       if (!access_token) throw new Error("토큰 재발급 실패");
       applyAccessToken(access_token, expires_in, persistLogin);
@@ -84,7 +84,7 @@ export default function LoginPage() {
       if (rememberId) localStorage.setItem("rememberEmail", email);
       else localStorage.removeItem("rememberEmail");
 
-      const res = await api("http://localhost:3000/api/v1/auth/login", {
+      const res = await api("/auth/login", {
         method: "POST",
         auth: false,
         body: { email, password }, // 백엔드 auth.js 기준
@@ -112,7 +112,7 @@ export default function LoginPage() {
         s.removeItem("access_token_saved_at");
         s.removeItem("access_token_expires_in");
       });
-      if (callServer) await api("http://localhost:3000/api/v1/auth/logout", { method: "POST", auth: false });
+      if (callServer) await api("/auth/logout", { method: "POST", auth: false });
     } catch {}
   };
 
