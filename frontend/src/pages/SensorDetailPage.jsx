@@ -1,7 +1,7 @@
 // src/pages/sensordetail.js
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, API_BASE } from "../lib/api";
 
 function getUnit(sensorType) {
   if (sensorType === "temperature") return "℃";
@@ -40,11 +40,11 @@ export default function SensorDetailPage() {
       setError("");
 
       try {
-        const sensorRes = await api(`/api/v1/sensors/${sensorId}`);
+        const sensorRes = await api(`/sensors/${sensorId}`);
         const s = sensorRes?.data || sensorRes || {};
 
         const dataRes = await api(
-          `/api/v1/sensors/${sensorId}/data?limit=50`
+          `/sensors/${sensorId}/data?limit=50`
         );
         let rows = dataRes?.data || dataRes || [];
         if (!Array.isArray(rows)) rows = [];
@@ -86,7 +86,7 @@ export default function SensorDetailPage() {
     if (!window.confirm("이 센서를 비활성화하시겠습니까?")) return;
 
     try {
-      await api(`/api/v1/sensors/${sensorId}`, {
+      await api(`/sensors/${sensorId}`, {
         method: "PATCH",
         body: { is_active: 0 },
       });

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-
+import { API_BASE } from "../lib/api";
 /** 환경 설정 */
-const API_BASE = import.meta?.env?.VITE_API_BASE || ""; // 같은 오리진이면 빈 문자열
 const AFTER_LOGIN_PATH = "/monitoring";                  // 로그인 성공 후 이동
 
 // 저장소 선택: 상태 유지 체크 시 localStorage, 아니면 sessionStorage

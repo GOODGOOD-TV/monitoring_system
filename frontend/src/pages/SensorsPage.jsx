@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom"; // ← 추가
-import { api, getAccessToken } from "../lib/api.js"; // ← 추가
+import { api, getAccessToken, API_BASE } from "../lib/api.js"; // ← 추가
 
 export default function SensorsPage() {
   const [rows, setRows] = useState([]);
@@ -12,7 +12,6 @@ export default function SensorsPage() {
 
   const [sort, setSort] = useState("created_at DESC");
 
-  const baseHost =  import.meta?.env?.VITE_API_BASE || "";
   const navigate = useNavigate(); 
 
   const url = useMemo(() => {
@@ -21,8 +20,8 @@ export default function SensorsPage() {
       size: String(size),
       sort,
     });
-    return `${baseHost}/sensors?${qs.toString()}`;
-  }, [baseHost, page, size, sort]);
+    return `${API_BASE}/sensors?${qs.toString()}`;
+  }, [API_BASE, page, size, sort]);
 
   async function load() {
     setLoading(true);

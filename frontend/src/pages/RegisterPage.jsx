@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
+import { API_BASE } from "../lib/api";
 
-const API_BASE = import.meta?.env?.VITE_API_BASE || "";
 const AFTER_SIGNUP_PATH = "/login";           // 가입 성공 후 로그인 화면으로
 
 export default function RegisterPage() {

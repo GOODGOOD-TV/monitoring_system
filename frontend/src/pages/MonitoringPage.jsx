@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { api, getAccessToken } from "../lib/api.js";
+import { api, getAccessToken, API_BASE } from "../lib/api.js";
 import SensorCard from "../components/SensorCard.jsx";
 
 export default function MonitoringPage() {
@@ -23,7 +23,7 @@ export default function MonitoringPage() {
     setError("");
     try {
       const list = await api(
-        `/api/v1/sensors?${new URLSearchParams({ page, size })}`
+        `/sensors?${new URLSearchParams({ page, size })}`
       );
       if (!list?.is_sucsess) throw new Error(list?.message || "API 실패");
 
@@ -82,7 +82,7 @@ export default function MonitoringPage() {
     try {
       const ids = tiles.map((t) => t.id).join(",");
       latest = await api(
-        `/api/v1/sensor-data/latest?${new URLSearchParams({ ids })}`
+        `/sensor-data/latest?${new URLSearchParams({ ids })}`
       );
     } catch (_) {
       latest = null;
@@ -130,7 +130,7 @@ export default function MonitoringPage() {
       const results = await Promise.allSettled(
         tiles.map((t) =>
           api(
-            `/api/v1/sensor-data?${new URLSearchParams({
+            `/sensor-data?${new URLSearchParams({
               sensor_id: t.id,
               mode: "raw",
               size: 1,

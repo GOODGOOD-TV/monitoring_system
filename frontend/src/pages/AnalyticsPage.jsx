@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
         size: "200",
         sort: "created_at DESC",
       });
-      const json = await api(`/api/v1/sensors?${q.toString()}`);
+      const json = await api(`/sensors?${q.toString()}`);
       if (!json?.is_sucsess) throw new Error(json?.message || "센서 목록 실패");
 
       const list = Array.isArray(json.data) ? json.data : [];
@@ -99,8 +99,8 @@ export default function AnalyticsPage() {
       });
 
       const [jsonSeries, jsonForecast] = await Promise.all([
-        api(`/api/v1/analytics/sensor-series?${q1.toString()}`),
-        api(`/api/v1/analytics/sensor-forecast?${q2.toString()}`),
+        api(`/analytics/sensor-series?${q1.toString()}`),
+        api(`/analytics/sensor-forecast?${q2.toString()}`),
       ]);
 
       if (!jsonSeries?.is_sucsess)
@@ -181,7 +181,7 @@ export default function AnalyticsPage() {
         q.append("name", reportName.trim());
       }
 
-      const url = `${API_BASE}/api/v1/analytics/sensor-report/pdf?${q.toString()}`;
+      const url = `${API_BASE}/analytics/sensor-report/pdf?${q.toString()}`;
 
       const res = await fetch(url, {
         method: "GET",

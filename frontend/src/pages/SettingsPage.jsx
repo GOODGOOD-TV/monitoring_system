@@ -1,7 +1,7 @@
 // src/pages/SettingsPage.jsx
 import React, { useEffect, useState } from "react";
 import { getSettings, saveSettings } from "../services/settings";
-import { api } from "../lib/api.js";
+import { api, API_BASE } from "../lib/api.js";
 
 /** 날짜 문자열을 YYYY-MM-DD 형태로 변환 */
 function formatDate(value) {
@@ -97,7 +97,7 @@ export default function SettingsPage() {
     setChangingPw(true);
     setPwMsg("");
     try {
-      await api("/api/v1/users/me/password", {
+      await api("/users/me/password", {
         method: "PATCH",
         body: {
           current_password: passwords.current,

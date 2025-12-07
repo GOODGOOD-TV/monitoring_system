@@ -12,7 +12,7 @@ import { api } from "../lib/api.js";
       sort: "created_at DESC",
     });
 
-    const json = await api(`/api/v1/sensors?${qs.toString()}`);
+    const json = await api(`/sensors?${qs.toString()}`);
 
     if (!json?.is_sucsess) {
       throw new Error(json?.message || "센서 목록 조회 실패");
@@ -41,7 +41,7 @@ import { api } from "../lib/api.js";
       pos_y: 20.0,
     };
 
-    const json = await api("/api/v1/sensors", {
+    const json = await api("/sensors", {
       method: "POST",
       body,
     });

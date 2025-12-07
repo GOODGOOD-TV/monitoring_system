@@ -1,6 +1,4 @@
-import { api } from "../lib/api.js";
-
-const API_BASE = import.meta?.env?.VITE_API_BASE || "http://localhost:3000";
+import { api, API_BASE } from "../lib/api.js";
 
 // 로그인 페이지에서 쓰는 것과 동일한 키 사용
 const getStoredAccessToken = () =>
@@ -17,7 +15,7 @@ class HttpError extends Error {
 export async function getZones() {
   const token = getStoredAccessToken();
 
-  const res = await fetch(`${API_BASE}/api/v1/areas`, {
+  const res = await fetch(`${API_BASE}/areas`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -49,7 +47,7 @@ export async function getZones() {
 export async function getZone(zoneId) {
   if (!zoneId) return null;
 
-  const json = await api(`/api/v1/areas/${zoneId}`);
+  const json = await api(`/areas/${zoneId}`);
 
   if (!json?.is_sucsess) {
     throw new Error(json?.message || "구역 조회 실패");
@@ -69,7 +67,7 @@ export async function getZone(zoneId) {
 /* 구역 생성 */
 export async function createZone({ name }) {
   const body = { area_name: name, is_active: true };
-  const json = await api("/api/v1/areas", {
+  const json = await api("/areas", {
     method: "POST",
     body,
   });

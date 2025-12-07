@@ -2,7 +2,7 @@
 import { api, getAccessToken } from "../lib/api.js";
 
 export async function getSettings() {
-  const res = await api("/api/v1/users/me");
+  const res = await api("/users/me");
   const u = res.data ?? res;
 
   return {
@@ -30,7 +30,7 @@ export async function saveSettings(settings) {
     email: settings.contact?.email ?? null,
   };
 
-  return api("/api/v1/users/me", {
+  return api("/users/me", {
     method: "PATCH",
     body,
   });

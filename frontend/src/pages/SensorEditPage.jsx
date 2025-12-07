@@ -1,7 +1,7 @@
 // src/pages/sensoreditpage.js
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, API_BASE } from "../lib/api";
 
 export default function SensorEditPage() {
   const { areaId, sensorId } = useParams(); // /zones/:areaId/sensors/:sensorId/edit
@@ -22,7 +22,7 @@ export default function SensorEditPage() {
     (async () => {
       setLoading(true);
       try {
-        const json = await api(`/api/v1/sensors/${sensorId}`);
+        const json = await api(`/sensors/${sensorId}`);
         const s = json?.data || json || {};
 
         setForm({
@@ -56,7 +56,7 @@ export default function SensorEditPage() {
     e.preventDefault();
 
     try {
-      await api(`/api/v1/sensors/${sensorId}`, {
+      await api(`/sensors/${sensorId}`, {
         method: "PATCH",
         body: {
           model: form.model,
