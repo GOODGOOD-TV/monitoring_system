@@ -4,6 +4,15 @@ import { pool } from '../libs/db.js';
 import { detectAnomalies } from '../libs/anomaly.js';
 import { smartForecast } from '../libs/forecast.js';
 import PDFDocument from 'pdfkit';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 한글 폰트 경로
+const KR_FONT = path.join(__dirname, '../assets/fonts/NotoSansKR-Regular.ttf');
+
 
 const router = Router();
 // 공통 보고서 로직 (JSON/ PDF 둘 다에서 사용)
@@ -132,7 +141,6 @@ async function buildSensorReport(company_id, sensor_id, hours) {
   };
 }
 
-
 /**
  * GET /api/v1/analytics/sensor-report/pdf
  */
@@ -149,7 +157,6 @@ router.get('/sensor-report/pdf', async (req, res) => {
 
     const report = await buildSensorReport(company_id, sensor_id, hours);
 
-    // 파일명
     const filename =
       `sentory-report-s${report.sensor.id}-${hours}h` +
       (name ? `-${name}` : '') +
@@ -163,6 +170,9 @@ router.get('/sensor-report/pdf', async (req, res) => {
 
     const doc = new PDFDocument({ margin: 40 });
     doc.pipe(res);
+
+    // ✅ 여기에서 한글 폰트 한 번만 세팅
+    doc.font(KR_FONT);
 
     const sensorLabel = report.sensor.model
       ? `${report.sensor.model} (#${report.sensor.id})`
@@ -260,12 +270,12 @@ router.get('/sensor-report/pdf', async (req, res) => {
     if (err.message === 'SENSOR_NOT_FOUND') {
       return res.notFound('센서 없음');
     }
-    // PDF 스트림 시작 전에 에러났으면 JSON으로 응답
     if (!res.headersSent) {
       return res.fail(500, 'ANALYTICS_REPORT_PDF_ERROR', err.message);
     }
   }
 });
+
 
 /**
  * GET /api/v1/analytics/sensor-series
