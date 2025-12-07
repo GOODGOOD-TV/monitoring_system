@@ -14,7 +14,15 @@ export function getAccessToken() {
     ""
   );
 }
-
+export function clearTokens() {
+  ["localStorage", "sessionStorage"].forEach((k) => {
+    const s = window[k];
+    s.removeItem("access_token");
+    s.removeItem("access_token_saved_at");
+    s.removeItem("access_token_expires_in");
+    s.removeItem("refresh_token");
+  });
+}
 // 토큰 저장 / 삭제
 function saveAccessToken(token) {
   const localHas = window.localStorage.getItem("access_token") != null;

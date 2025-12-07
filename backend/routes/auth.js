@@ -4,19 +4,26 @@ import { pool } from '../libs/db.js';
 import { signAccess, signRefresh, verifyRefresh, ACCESS_EXP_SEC, REFRESH_EXP_SEC } from '../libs/jwt.js';
 
 const r = Router();
-
+function validatePhone(phone) {
+  // 010-1234-5678 또는 01012345678
+  const re = /^01[016789]-?\d{3,4}-?\d{4}$/;
+  return re.test(phone);
+}
 /**
  * POST /api/v1/auth/register
  * body: { email, password, name }
  * 비밀번호 해시 저장. 기본 role=user, company_id는 임시로 1 (초기 부트스트랩 단계).
  * 운영에서는 관리자만 사용자 생성하도록 별도 /users 로 분리 가능.
  */
+
 r.post('/register', async (req, res) => {
   const { company_name, email, password, name, phone, employee_id } = req.body ?? {};
+  if (!validatePhone(phone)) {
+    return res.badRequest(400, '전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)');
+  }
   if (!company_name || !email || !password || !name || !phone || !employee_id) {
     return res.fail(400, 'INVALID_REQUEST_BODY',  'company_name/email/password/name/phone/employee_id 필수');
   }
-
   const [company] = await pool.query(
     'SELECT id FROM company WHERE name=:company_name AND deleted_at IS NULL',
     { company_name }

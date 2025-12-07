@@ -1,5 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
+import { API_BASE } from "../lib/api";
 
 const linkStyle = ({ isActive }) => ({
   padding: "10px 14px",
@@ -23,7 +24,7 @@ export default function Navbar() {
   // const navigate = useNavigate();
   const handleLogout = async () => { 
     try {
-      await fetch("http://localhost:3000/api/v1/auth/logout", { //서버에 로그아웃 로그 작성 시
+      await fetch(`${API_BASE}/auth/logout`, { //서버에 로그아웃 로그 작성 시
         method: "POST",
         credentials: "include",
       }).catch(() => {});
