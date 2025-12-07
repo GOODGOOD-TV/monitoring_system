@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 // 공용 컴포넌트
 import Navbar from "./components/Navbar.jsx";
+import RequireAuth from "./components/RequireAuth.jsx";
 
 // 페이지
 import MonitoringPage from "./pages/MonitoringPage.jsx";
@@ -14,42 +15,42 @@ import SensorDetailPage from "./pages/SensorDetailPage.jsx";
 import SensorEditPage from "./pages/SensorEditPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
-import RegisterPage from "./pages/RegisterPage.jsx";  
-
-
-// 아직 미구현 페이지는 임시 박스로
-const box = { maxWidth: 1200, margin: "0 auto", padding: 24 };
-const Zones    = () => <div style={box}>구역</div>;
-const Settings = () => <div style={box}>설정</div>;
+import RegisterPage from "./pages/RegisterPage.jsx";
 
 export default function App() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* 상단 네비게이션 */}
       <Navbar />
 
-      {/* 본문: 회색 배경 영역 */}
       <main style={{ flex: 1, background: "#e5e7eb" }}>
         <Routes>
-          {/* 기본 진입시 모니터링으로 */}
+          {/* 기본 진입시 로그인으로 */}
           <Route path="/" element={<Navigate to="/login" replace />} />
 
-          {/* 실제 페이지들 */}
+          {/* 인증 필요 없는 페이지 */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/monitoring" element={<MonitoringPage />} />
-          <Route path="/sensors"    element={<SensorsPage />} />
-          <Route path="/analytics"  element={<AnalyticsPage />} />
-          <Route path="/zones" element={<ZonesPage />} />
-          <Route path="/zones/:zoneId" element={<ZoneSensorsPage />} />
-          <Route path="/zones/:zoneId/sensors/:sensorId" element={<SensorDetailPage />} />
-          <Route path="/zones/:zoneId/sensors/:sensorId/edit" element={<SensorEditPage />} />
-          <Route path="/settings"   element={<SettingsPage />} />
-          {/* 임시 페이지들 (원하면 추후 실제 파일로 교체) */}
-          <Route path="/settings"   element={<Settings />} />
 
-          {/* 정의되지 않은 경로 → 모니터링으로 */}
-          <Route path="*" element={<Navigate to="/monitoring" replace />} />
+          {/* 여기부터는 토큰 필수 */}
+          <Route element={<RequireAuth />}>
+            <Route path="/monitoring" element={<MonitoringPage />} />
+            <Route path="/sensors"    element={<SensorsPage />} />
+            <Route path="/analytics"  element={<AnalyticsPage />} />
+            <Route path="/zones"      element={<ZonesPage />} />
+            <Route path="/zones/:zoneId" element={<ZoneSensorsPage />} />
+            <Route
+              path="/zones/:zoneId/sensors/:sensorId"
+              element={<SensorDetailPage />}
+            />
+            <Route
+              path="/zones/:zoneId/sensors/:sensorId/edit"
+              element={<SensorEditPage />}
+            />
+            <Route path="/settings"   element={<SettingsPage />} />
+          </Route>
+
+          {/* 보호 안 걸리는 나머지 이상한 URL → 로그인으로 */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </main>
     </div>

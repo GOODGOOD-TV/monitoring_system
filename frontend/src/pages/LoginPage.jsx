@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { API_BASE } from "../lib/api";
+import { API_BASE, clearTokens } from "../lib/api";
 /** 환경 설정 */
 const AFTER_LOGIN_PATH = "/monitoring";                  // 로그인 성공 후 이동
 
@@ -7,6 +7,10 @@ const AFTER_LOGIN_PATH = "/monitoring";                  // 로그인 성공 후
 const getStore = (persist) => (persist ? window.localStorage : window.sessionStorage);
 
 export default function LoginPage() {
+  useEffect(() => {
+    // 로그인 페이지 들어오면 기존 토큰 모두 삭제
+    clearTokens();
+  }, []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberId, setRememberId] = useState(false);
